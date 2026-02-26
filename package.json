@@ -1,0 +1,29 @@
+{
+  "name": "api",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy --minify",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "generate": "drizzle-kit generate --config=src/db/drizzle.config.ts",
+    "migrate": "drizzle-kit migrate --config=src/db/drizzle.config.ts"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.3.1",
+    "drizzle-orm": "^0.45.1",
+    "graphql": "^16.12.0",
+    "graphql-yoga": "^5.18.0",
+    "hono": "^4.12.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260219.0",
+    "@types/bcryptjs": "^3.0.0",
+    "@types/node": "^25.3.0",
+    "drizzle-kit": "^0.31.9",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.4.0"
+  }
+}
