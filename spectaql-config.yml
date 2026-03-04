@@ -1,0 +1,15 @@
+spectaql:
+  oneFile: true
+  targetDir: ./docs
+  targetFile: api-docs.html
+
+introspection:
+  schemaFile: ./schema.graphql
+
+servers:
+  - url: http://localhost:8787/graphql
+    description: Local
+
+info:
+  title: SK Move API
+  version: 0.1.0
