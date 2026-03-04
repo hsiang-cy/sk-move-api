@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { HTTPException } from 'hono/http-exception'
 import { createYoga } from 'graphql-yoga'
 import { createDb } from './db/connect'
 import { schema, Context } from './graphql/schema'
@@ -70,6 +71,14 @@ const yoga = createYoga<{ request: Request; env: Bindings }, Context>({
       env: env
     }
   }
+})
+
+app.onError((err, c) => {
+  if (err instanceof HTTPException) {
+    return c.json({ error: err.message }, err.status)
+  }
+  console.error(err)
+  return c.json({ error: '伺服器內部錯誤' }, 500)
 })
 
 // Webhook routes (server-to-server, no JWT auth)

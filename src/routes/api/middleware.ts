@@ -1,4 +1,5 @@
 import { createMiddleware } from 'hono/factory'
+import { HTTPException } from 'hono/http-exception'
 import { and, eq } from 'drizzle-orm'
 import { createDb } from '../../db/connect'
 import { token as tokenTable } from '../../db/schema'
@@ -14,7 +15,7 @@ export const tokenAuth = createMiddleware<{ Bindings: Bindings; Variables: ApiVa
   async (c, next) => {
     const authHeader = c.req.header('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
-      return c.json({ error: 'Unauthorized' }, 401)
+      throw new HTTPException(401, { message: '未授權' })
     }
 
     const tokenValue = authHeader.slice(7)
@@ -27,8 +28,8 @@ export const tokenAuth = createMiddleware<{ Bindings: Bindings; Variables: ApiVa
       .where(and(eq(tokenTable.token, tokenValue), eq(tokenTable.status, 'active')))
       .limit(1)
 
-    if (!record) return c.json({ error: 'Unauthorized' }, 401)
-    if (record.dead_at && record.dead_at < now) return c.json({ error: 'Token expired' }, 401)
+    if (!record) throw new HTTPException(401, { message: '未授權' })
+    if (record.dead_at && record.dead_at < now) throw new HTTPException(401, { message: 'Token 已過期' })
 
     c.set('account_id', record.account_id)
     c.set('token_id', record.id)
