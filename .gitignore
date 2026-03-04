@@ -1,11 +1,6 @@
 dist/
-
 .vscode/*
-
-
 node_modules/
 .wrangler
-
 .env
-
-
+**/*.md

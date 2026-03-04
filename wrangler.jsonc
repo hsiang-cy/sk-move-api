@@ -1,13 +1,13 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "api",
+  "name": "saki-move-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-02-19",
   "vars": {
-    "ORTOOLS_URL": "https://tile-zip--ortools-vrp-solver-api-dev.modal.run",
-    "API_BASE_URL": "https://your-api.workers.dev"
-    // ORTOOLS_WEBHOOK_SECRET: set via `wrangler secret put ORTOOLS_WEBHOOK_SECRET`
+    "API_BASE_URL": "https://api.tile-zip.workers.dev"
   }
+  // Secrets (set via `wrangler secret put <NAME>`):
+  // DATABASE_URL, JWT_SECRET, GOOGLE_ROUTES_API_KEY, ORTOOLS_URL, ORTOOLS_WEBHOOK_SECRET
   // "compatibility_flags": [
   //   "nodejs_compat"
   // ],
