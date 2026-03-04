@@ -4,6 +4,7 @@ import { createDb } from './db/connect'
 import { schema, Context } from './graphql/schema'
 import { verify } from 'hono/jwt'
 import { webhookRoutes } from './routes/webhook'
+import { apiRoutes } from './routes/api'
 
 type Bindings = {
   DATABASE_URL: string
@@ -73,6 +74,9 @@ const yoga = createYoga<{ request: Request; env: Bindings }, Context>({
 
 // Webhook routes (server-to-server, no JWT auth)
 app.route('/', webhookRoutes)
+
+// B2B API routes (token-based auth)
+app.route('/api/v1', apiRoutes)
 
 // 將 Yoga 掛載到 /graphql
 app.all('/graphql', (c) => yoga.fetch(c.req.raw, { env: c.env }))

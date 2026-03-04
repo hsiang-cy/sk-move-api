@@ -6,6 +6,7 @@ import { destinationResolvers, destinationTypeDefs } from './resolvers/destinati
 import { vehicleResolvers, vehicleTypeDefs } from './resolvers/vehicle'
 import { orderResolvers, orderTypeDefs } from './resolvers/order'
 import { computeResolvers, computeTypeDefs } from './resolvers/compute'
+import { tokenResolvers, tokenTypeDefs } from './resolvers/token'
 
 function parseLiteral(ast: any): any {
   switch (ast.kind) {
@@ -46,6 +47,7 @@ const typeDefs = [
   vehicleTypeDefs,
   orderTypeDefs,
   computeTypeDefs,
+  tokenTypeDefs,
 ]
 
 function mergeResolvers(...maps: any[]) {
@@ -67,6 +69,7 @@ export const schema = createSchema<Context>({
     destinationResolvers,
     vehicleResolvers,
     orderResolvers,
-    computeResolvers
+    computeResolvers,
+    tokenResolvers
   )
 })

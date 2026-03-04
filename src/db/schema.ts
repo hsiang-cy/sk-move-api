@@ -74,8 +74,18 @@ export const token = pgTable('token', {
     token: text('text').notNull().unique(),
 
     created_at: bigint('created_at', { mode: 'number' }).default(sql`EXTRACT(EPOCH FROM NOW())::bigint`),
+    dead_at: bigint('dead_at', { mode: 'number' }),
     updated_at: bigint('updated_at', { mode: 'number' }),
     data: jsonb('data'),    // comment 放這
+})
+
+// token 操作紀錄
+export const token_action_log = pgTable('token_action_log', {
+    id: serial('id').primaryKey(),
+    token_id: integer('token_id').notNull().references(() => token.id, { onDelete: 'cascade' }),
+
+    date: bigint('date', { mode: 'number' }).default(sql`EXTRACT(EPOCH FROM NOW())::bigint`),
+    data: jsonb('data'),
 })
 
 // 地點

@@ -146,8 +146,8 @@ export const computeResolvers = {
       const distMatrix = Array.from({ length: n }, () => Array<number>(n).fill(0))
       const timeMatrix = Array.from({ length: n }, () => Array<number>(n).fill(0))
       for (const p of pairs) {
-        distMatrix[idxMap[p.a_point]][idxMap[p.b_point]] = p.distance_from_a_to_b
-        timeMatrix[idxMap[p.a_point]][idxMap[p.b_point]] = p.time_from_a_to_b
+        distMatrix[idxMap[p.a_point]][idxMap[p.b_point]] = Number(p.distance_from_a_to_b)
+        timeMatrix[idxMap[p.a_point]][idxMap[p.b_point]] = Number(p.time_from_a_to_b)
       }
 
       // 4. 組裝 VRPRequest
