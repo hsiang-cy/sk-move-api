@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
 import { createYoga } from 'graphql-yoga'
-import { useSofa } from '@graphql-yoga/plugin-sofa'
 import { createDb } from './db/connect'
 import { schema, Context } from './graphql/schema'
 import { verify } from 'hono/jwt'
@@ -48,13 +47,6 @@ app
 // GraphQL Yoga Handler
 const yoga = createYoga<{ request: Request; env: Bindings }, Context>({
   schema,
-  plugins: [
-    useSofa({
-      basePath: '/rest',
-      swaggerUI: { endpoint: '/rest/docs' },
-      info: { title: 'SK Move API', version: '0.1.0' },
-    }),
-  ],
   context: async ({ request, env }) => {
     // 獲取 Database instance (Drizzle)
     const database = createDb(env.DATABASE_URL)
@@ -84,22 +76,5 @@ app.route('/', webhookRoutes)
 
 // 將 Yoga 掛載到 /graphql
 app.all('/graphql', (c) => yoga.fetch(c.req.raw, { env: c.env }))
-
-// Sofa REST API
-app.all('/rest/*', (c) => yoga.fetch(c.req.raw, { env: c.env }))
-
-// Scalar API 文件
-app.get('/docs', (c) => c.html(`<!doctype html>
-<html>
-  <head>
-    <title>SK Move API Docs</title>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-  </head>
-  <body>
-    <script id="api-reference" data-url="/rest/openapi.json"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
-  </body>
-</html>`))
 
 export default app

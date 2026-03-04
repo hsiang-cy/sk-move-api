@@ -3,67 +3,28 @@ import { destination as destinationTable } from '../../db/schema'
 import { requireAuth, type Context } from '../context'
 
 export const destinationTypeDefs = /* GraphQL */ `
-  """地點（停靠站 / 倉庫）"""
   type Destination {
     id:                  ID!
     account_id:          Int!
-    """地點狀態"""
     status:              Status!
-    """地點名稱"""
     name:                String!
-    """地址"""
     address:             String!
-    """緯度"""
     lat:                 String!
-    """經度"""
     lng:                 String!
-    """自訂擴充資料"""
     data:                JSON
-    """建立時間（Unix timestamp）"""
     created_at:          Float
-    """更新時間（Unix timestamp）"""
     updated_at:          Float
-    """備註"""
     comment_for_account: String
   }
 
   extend type Query {
-    """取得所有地點，可依狀態篩選"""
-    destinations(
-      """篩選狀態，不傳則回傳全部"""
-      status: Status
-    ): [Destination!]!
-    """取得單一地點"""
+    destinations(status: Status): [Destination!]!
     destination(id: ID!): Destination
   }
 
   extend type Mutation {
-    """新增地點"""
-    createDestination(
-      """地點名稱"""
-      name: String!
-      """地址"""
-      address: String!
-      """緯度"""
-      lat: String!
-      """經度"""
-      lng: String!
-      """自訂擴充資料"""
-      data: JSON
-      """備註"""
-      comment_for_account: String
-    ): Destination!
-    """更新地點"""
-    updateDestination(
-      id: ID!
-      name: String
-      address: String
-      lat: String
-      lng: String
-      data: JSON
-      comment_for_account: String
-    ): Destination!
-    """刪除地點（軟刪除，狀態改為 deleted）"""
+    createDestination(name: String!, address: String!, lat: String!, lng: String!, data: JSON, comment_for_account: String): Destination!
+    updateDestination(id: ID!, name: String, address: String, lat: String, lng: String, data: JSON, comment_for_account: String): Destination!
     deleteDestination(id: ID!): Destination!
   }
 `

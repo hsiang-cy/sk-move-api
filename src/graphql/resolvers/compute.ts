@@ -11,98 +11,53 @@ import {
 import { requireAuth, type Context } from '../context'
 
 export const computeTypeDefs = /* GraphQL */ `
-  """VRP 路徑規劃計算任務"""
   type Compute {
     id:                  ID!
     account_id:          Int!
-    """所屬任務單 ID"""
     order_id:            Int!
-    """狀態"""
     status:              Status!
-    """計算狀態"""
     compute_status:      ComputeStatus!
-    """計算開始時間（Unix timestamp）"""
     start_time:          Float
-    """計算結束時間（Unix timestamp）"""
     end_time:            Float
-    """失敗原因"""
     fail_reason:         String
-    """自訂擴充資料"""
     data:                JSON
-    """建立時間（Unix timestamp）"""
     created_at:          Float
-    """更新時間（Unix timestamp）"""
     updated_at:          Float
-    """備註"""
     comment_for_account: String
-    """計算結果路線列表"""
     routes:              [Route!]!
   }
 
-  """單一車輛的派車路線"""
   type Route {
     id:             ID!
     compute_id:     Int!
     vehicle_id:     Int!
-    """狀態"""
     status:         Status!
-    """總行駛距離（公尺）"""
     total_distance: Int!
-    """總行駛時間（分鐘）"""
     total_time:     Int!
-    """總載重量"""
     total_load:     Int!
-    """建立時間（Unix timestamp）"""
     created_at:     Float
-    """派送車輛"""
     vehicle:        Vehicle
-    """停靠站順序列表"""
     stops:          [RouteStop!]!
   }
 
-  """路線中的單一停靠站"""
   type RouteStop {
     id:             ID!
     route_id:       Int!
     destination_id: Int!
-    """停靠順序（從 0 開始）"""
     sequence:       Int!
-    """預計抵達時間（分鐘，從當日 00:00 起算）"""
     arrival_time:   Int!
-    """此站需求量"""
     demand:         Int!
-    """建立時間（Unix timestamp）"""
     created_at:     Float
-    """地點詳細資料"""
     destination:    Destination
   }
 
   extend type Query {
-    """取得計算任務列表，可依任務單或計算狀態篩選"""
-    computes(
-      """篩選特定任務單"""
-      orderId: ID
-      """篩選計算狀態"""
-      status: ComputeStatus
-    ): [Compute!]!
-    """取得單一計算任務"""
+    computes(orderId: ID, status: ComputeStatus): [Compute!]!
     compute(id: ID!): Compute
   }
 
   extend type Mutation {
-    """
-    發起 VRP 路徑規劃計算。
-    計算為非同步，狀態由 compute_status 追蹤，結果透過 webhook 寫入。
-    """
-    createCompute(
-      """任務單 ID"""
-      order_id: ID!
-      """自訂擴充資料，可傳入 time_limit_seconds 控制計算時限（預設 30 秒）"""
-      data: JSON
-      """備註"""
-      comment_for_account: String
-    ): Compute!
-    """取消計算任務"""
+    createCompute(order_id: ID!, data: JSON, comment_for_account: String): Compute!
     cancelCompute(id: ID!): Compute!
   }
 `

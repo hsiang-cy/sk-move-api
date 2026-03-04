@@ -31,45 +31,9 @@ export type { Context }
 const baseTypeDefs = /* GraphQL */ `
   scalar JSON
 
-  """通用狀態"""
-  enum Status {
-    """停用"""
-    inactive
-    """啟用"""
-    active
-    """已刪除"""
-    deleted
-  }
-
-  """計算任務狀態"""
-  enum ComputeStatus {
-    """初始"""
-    initial
-    """等待中"""
-    pending
-    """計算中"""
-    computing
-    """已完成"""
-    completed
-    """失敗"""
-    failed
-    """已取消"""
-    cancelled
-  }
-
-  """帳號角色"""
-  enum AccountRole {
-    """系統管理員"""
-    admin
-    """管理者"""
-    manager
-    """一般使用者"""
-    normal
-    """訪客"""
-    guest
-    """唯讀"""
-    just_view
-  }
+  enum Status        { inactive active deleted }
+  enum ComputeStatus { initial pending computing completed failed cancelled }
+  enum AccountRole   { admin manager normal guest just_view }
 
   type Query
   type Mutation

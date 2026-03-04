@@ -6,12 +6,9 @@
     "deploy": "wrangler deploy --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "generate": "drizzle-kit generate --config=src/db/drizzle.config.ts",
-    "migrate": "drizzle-kit migrate --config=src/db/drizzle.config.ts",
-    "export-schema": "tsx scripts/export-schema.ts",
-    "docs": "pnpm run export-schema && spectaql spectaql-config.yml"
+    "migrate": "drizzle-kit migrate --config=src/db/drizzle.config.ts"
   },
   "dependencies": {
-    "@graphql-yoga/plugin-sofa": "^3.18.0",
     "@neondatabase/serverless": "^1.0.2",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.3.1",
@@ -25,7 +22,6 @@
     "@types/bcryptjs": "^3.0.0",
     "@types/node": "^25.3.0",
     "drizzle-kit": "^0.31.9",
-    "spectaql": "^3.0.6",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "wrangler": "^4.4.0"

@@ -3,51 +3,26 @@ import { order as orderTable, compute as computeTable, info_between_two_point as
 import { requireAuth, type Context } from '../context'
 
 export const orderTypeDefs = /* GraphQL */ `
-  """派車任務單，包含地點與車輛快照"""
   type Order {
     id:                   ID!
     account_id:           Int!
-    """狀態"""
     status:               Status!
-    """自訂擴充資料"""
     data:                 JSON
-    """建立時間（Unix timestamp）"""
     created_at:           Float
-    """更新時間（Unix timestamp）"""
     updated_at:           Float
-    """建立時的地點快照（JSON 陣列）"""
     destination_snapshot: JSON!
-    """建立時的車輛快照（JSON 陣列）"""
     vehicle_snapshot:     JSON!
-    """備註"""
     comment_for_account:  String
-    """此任務單的所有計算任務"""
     computes:             [Compute!]!
   }
 
   extend type Query {
-    """取得所有任務單，可依狀態篩選"""
     orders(status: Status): [Order!]!
-    """取得單一任務單"""
     order(id: ID!): Order
   }
 
   extend type Mutation {
-    """
-    新增任務單。
-    建立時會自動呼叫 Google Routes API 計算並快取地點間的距離與行駛時間。
-    """
-    createOrder(
-      """地點快照，格式參考 Destination 型別"""
-      destination_snapshot: JSON!
-      """車輛快照，格式參考 Vehicle 型別"""
-      vehicle_snapshot: JSON!
-      """自訂擴充資料"""
-      data: JSON
-      """備註"""
-      comment_for_account: String
-    ): Order!
-    """刪除任務單（軟刪除）"""
+    createOrder(destination_snapshot: JSON!, vehicle_snapshot: JSON!, data: JSON, comment_for_account: String): Order!
     deleteOrder(id: ID!): Order!
   }
 `

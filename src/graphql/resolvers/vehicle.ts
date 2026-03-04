@@ -7,95 +7,46 @@ import {
 import { requireAuth, type Context } from '../context'
 
 export const vehicleTypeDefs = /* GraphQL */ `
-  """自訂車輛類型"""
   type CustomVehicleType {
     id:                  ID!
     account_id:          Int!
-    """狀態"""
     status:              Status!
-    """車型名稱"""
     name:                String!
-    """載重容量"""
     capacity:            Int!
-    """自訂擴充資料"""
     data:                JSON
-    """建立時間（Unix timestamp）"""
     created_at:          Float
-    """更新時間（Unix timestamp）"""
     updated_at:          Float
-    """備註"""
     comment_for_account: String
   }
 
-  """車輛"""
   type Vehicle {
     id:                  ID!
     account_id:          Int!
-    """狀態"""
     status:              Status!
-    """車牌號碼"""
     vehicle_number:      String!
-    """車型 ID"""
     vehicle_type:        Int!
-    """停放倉庫（地點）ID"""
     depot_id:            Int
-    """自訂擴充資料"""
     data:                JSON
-    """建立時間（Unix timestamp）"""
     created_at:          Float
-    """更新時間（Unix timestamp）"""
     updated_at:          Float
-    """備註"""
     comment_for_account: String
-    """車型詳細資料"""
     vehicleTypeInfo:     CustomVehicleType
-    """停放倉庫地點"""
     depot:               Destination
   }
 
   extend type Query {
-    """取得所有車型，可依狀態篩選"""
     customVehicleTypes(status: Status): [CustomVehicleType!]!
-    """取得單一車型"""
     customVehicleType(id: ID!): CustomVehicleType
-    """取得所有車輛，可依狀態篩選"""
     vehicles(status: Status): [Vehicle!]!
-    """取得單一車輛"""
     vehicle(id: ID!): Vehicle
   }
 
   extend type Mutation {
-    """新增車型"""
-    createCustomVehicleType(
-      """車型名稱"""
-      name: String!
-      """載重容量"""
-      capacity: Int!
-      """自訂擴充資料"""
-      data: JSON
-      """備註"""
-      comment_for_account: String
-    ): CustomVehicleType!
-    """更新車型"""
+    createCustomVehicleType(name: String!, capacity: Int!, data: JSON, comment_for_account: String): CustomVehicleType!
     updateCustomVehicleType(id: ID!, name: String, capacity: Int, data: JSON, comment_for_account: String): CustomVehicleType!
-    """刪除車型（軟刪除）"""
     deleteCustomVehicleType(id: ID!): CustomVehicleType!
-    """新增車輛"""
-    createVehicle(
-      """車牌號碼"""
-      vehicle_number: String!
-      """車型 ID"""
-      vehicle_type: ID!
-      """停放倉庫（地點）ID"""
-      depot_id: ID
-      """自訂擴充資料"""
-      data: JSON
-      """備註"""
-      comment_for_account: String
-    ): Vehicle!
-    """更新車輛"""
+    createVehicle(vehicle_number: String!, vehicle_type: ID!, depot_id: ID, data: JSON, comment_for_account: String): Vehicle!
     updateVehicle(id: ID!, vehicle_number: String, vehicle_type: ID, depot_id: ID, data: JSON, comment_for_account: String): Vehicle!
-    """刪除車輛（軟刪除）"""
     deleteVehicle(id: ID!): Vehicle!
   }
 `
