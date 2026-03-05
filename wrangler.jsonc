@@ -7,7 +7,8 @@
     "API_BASE_URL": "https://api.tile-zip.workers.dev"
   }
   // Secrets (set via `wrangler secret put <NAME>`):
-  // DATABASE_URL, JWT_SECRET, GOOGLE_ROUTES_API_KEY, ORTOOLS_URL, ORTOOLS_WEBHOOK_SECRET
+  // DATABASE_URL, JWT_SECRET, GOOGLE_ROUTES_API_KEY, ORTOOLS_URL
+  // QSTASH_URL, QSTASH_TOKEN, QSTASH_CURRENT_SIGNING_KEY, QSTASH_NEXT_SIGNING_KEY
   // "compatibility_flags": [
   //   "nodejs_compat"
   // ],

@@ -1,6 +1,7 @@
 {
   "name": "saki-move-api",
   "type": "module",
+  "packageManager": "pnpm@10.17.1",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --minify",

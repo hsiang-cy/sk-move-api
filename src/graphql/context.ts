@@ -10,6 +10,10 @@ export type Context = {
     ORTOOLS_URL: string
     API_BASE_URL: string
     GOOGLE_ROUTES_API_KEY: string
+    QSTASH_URL: string
+    QSTASH_TOKEN: string
+    QSTASH_CURRENT_SIGNING_KEY: string
+    QSTASH_NEXT_SIGNING_KEY: string
   }
 }
 

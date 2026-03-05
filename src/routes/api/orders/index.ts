@@ -19,6 +19,8 @@ type Bindings = {
   ORTOOLS_URL: string
   API_BASE_URL: string
   GOOGLE_ROUTES_API_KEY: string
+  QSTASH_URL: string
+  QSTASH_TOKEN: string
 }
 type Env = { Bindings: Bindings; Variables: ApiVariables }
 
@@ -376,10 +378,10 @@ orderRoutes.openapi(triggerComputeRoute, async (c) => {
     timeMatrix[idxMap[p.a_point]][idxMap[p.b_point]] = Number(p.time_from_a_to_b)
   }
 
+  const depotIndex = Math.max(0, destinations.findIndex((d: any) => d.is_depot))
+
   const vrpPayload = {
     compute_id: compute.id,
-    webhook_url: `${c.env.API_BASE_URL}/internal/vrp-callback`,
-    depot_index: Math.max(0, destinations.findIndex((d: any) => d.is_depot)),
     locations: destinations.map((d: any) => ({
       id: d.id,
       name: d.name ?? '',
@@ -388,31 +390,45 @@ orderRoutes.openapi(triggerComputeRoute, async (c) => {
       pickup: d.pickup ?? 0,
       delivery: d.delivery ?? 0,
       service_time: d.service_time ?? 0,
-      time_window_start: d.time_window_start ?? 0,
-      time_window_end: d.time_window_end ?? 1440,
+      tw_start: d.time_window_start ?? 0,
+      tw_end: d.time_window_end ?? 1440,
+      ...(d.unserved_penalty != null && { unserved_penalty: d.unserved_penalty }),
+      ...(d.late_penalty != null && { late_penalty: d.late_penalty }),
+      ...(d.allowed_vehicle_ids?.length && { allowed_vehicle_ids: d.allowed_vehicle_ids }),
     })),
     vehicles: vehicles.map((v: any) => ({
       id: v.id,
       capacity: v.capacity ?? 0,
       fixed_cost: v.fixed_cost ?? 0,
+      start_location_index: v.start_location_index ?? depotIndex,
+      ...(v.max_duration_minutes != null && { max_duration_minutes: v.max_duration_minutes }),
     })),
     distance_matrix: distMatrix,
     time_matrix: timeMatrix,
-    time_limit_seconds: body.time_limit_seconds ?? 30,
+    ...(body.time_limit_seconds != null && { time_limit_seconds: body.time_limit_seconds }),
   }
 
+  // 發佈到 QStash，由 QStash 呼叫 Rust VRP API 並回呼 /internal/vrp-callback
+  const rustApiUrl = `${c.env.ORTOOLS_URL}/vrp/solve`
+  const qstashPublishUrl = `${c.env.QSTASH_URL}/v2/publish/${encodeURIComponent(rustApiUrl)}`
+
   try {
-    const res = await fetch(`${c.env.ORTOOLS_URL}/vrp/solve`, {
+    const res = await fetch(qstashPublishUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Authorization': `Bearer ${c.env.QSTASH_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Upstash-Callback': `${c.env.API_BASE_URL}/internal/vrp-callback`,
+        'Upstash-Retries': '0',
+      },
       body: JSON.stringify(vrpPayload),
     })
     if (!res.ok) {
       const errText = await res.text().catch(() => `HTTP ${res.status}`)
-      await markFailed(`OR-Tools 回傳錯誤: ${errText}`)
+      await markFailed(`QStash 排隊失敗: ${errText}`)
     }
   } catch (e: any) {
-    await markFailed(`無法連線到演算法服務: ${e.message}`)
+    await markFailed(`無法連線到 QStash: ${e.message}`)
   }
 
   return c.json(compute, 202)
