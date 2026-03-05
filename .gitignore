@@ -3,4 +3,5 @@ dist/
 node_modules/
 .wrangler
 .env
+.dev.vars
 **/*.md

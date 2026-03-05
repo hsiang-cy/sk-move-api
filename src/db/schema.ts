@@ -172,8 +172,6 @@ export const order = pgTable('order', {
     id: serial('id').primaryKey(),
     status: statusEnum('status').notNull().default('active'), // inactive, active, deleted
 
-    algorithm: text('algorithm').notNull().default('未設定'),
-
     data: jsonb('data'),
     /*
         order_number: 訂單編號，使用者自訂，或者系統自動生成的唯一識別碼

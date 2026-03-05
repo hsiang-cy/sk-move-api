@@ -17,7 +17,8 @@ import { ComputeSchema } from '../computes'
 
 type Bindings = {
   DATABASE_URL: string
-  ORTOOLS_URL: string
+  vrp_api_python: string
+  vrp_api_rust: string
   API_BASE_URL: string
   GOOGLE_ROUTES_API_KEY: string
   QSTASH_URL: string
@@ -31,7 +32,6 @@ export const OrderSchema = z.object({
   id: z.number().int(),
   account_id: z.number().int(),
   status: StatusEnum,
-  algorithm: z.string(),
   data: z.any(),
   destination_snapshot: z.any(),
   vehicle_snapshot: z.any(),
@@ -332,7 +332,10 @@ orderRoutes.openapi(triggerComputeRoute, async (c) => {
   const db = createDb(c.env.DATABASE_URL)
   const account_id = c.get('account_id')
   const { id: order_id } = c.req.valid('param')
-  const body = await c.req.json().catch(() => ({})) as { data?: any; comment_for_account?: string; time_limit_seconds?: number }
+  const rawBody = await c.req.json().catch(() => ({}))
+  const bodyResult = TriggerComputeBody.safeParse(rawBody)
+  if (!bodyResult.success) throw new HTTPException(400, { message: '請求資料格式錯誤' })
+  const body = bodyResult.data
   const now = Math.floor(Date.now() / 1000)
 
   const [order] = await db.select().from(orderTable)
@@ -419,8 +422,8 @@ orderRoutes.openapi(triggerComputeRoute, async (c) => {
   }
 
   // 發佈到 QStash，由 QStash 呼叫 Rust VRP API 並回呼 /internal/vrp-callback
-  const rustApiUrl = `${c.env.ORTOOLS_URL}/vrp/solve`
-  const qstashPublishUrl = `${c.env.QSTASH_URL}/v2/publish/${encodeURIComponent(rustApiUrl)}`
+  const rustApiUrl = `${c.env.vrp_api_python}/vrp/solve`
+  const qstashPublishUrl = `${c.env.QSTASH_URL}/v2/publish/${rustApiUrl}`
 
   try {
     const res = await fetch(qstashPublishUrl, {
@@ -457,6 +460,9 @@ orderRoutes.openapi(listOrderComputesRoute, async (c) => {
   const items = await db.select(getTableColumns(computeTable))
     .from(computeTable)
     .innerJoin(computeOneClickTable, eq(computeTable.compute_one_click_id, computeOneClickTable.id))
-    .where(eq(computeOneClickTable.order_id, order_id))
+    .where(and(
+      eq(computeOneClickTable.order_id, order_id),
+      eq(computeOneClickTable.account_id, account_id),
+    ))
   return c.json(items, 200)
 })

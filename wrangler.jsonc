@@ -4,10 +4,10 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-02-19",
   "vars": {
-    "API_BASE_URL": "https://api.tile.workers.dev"
+    "API_BASE_URL": "https://deutschland-generous-morgan-guestbook.trycloudflare.com"
   }
   // Secrets (set via `wrangler secret put <NAME>`):
-  // DATABASE_URL, JWT_SECRET, GOOGLE_ROUTES_API_KEY, ORTOOLS_URL
+  // DATABASE_URL, JWT_SECRET, GOOGLE_ROUTES_API_KEY, vrp_api_python
   // QSTASH_URL, QSTASH_TOKEN, QSTASH_CURRENT_SIGNING_KEY, QSTASH_NEXT_SIGNING_KEY
   // "compatibility_flags": [
   //   "nodejs_compat"

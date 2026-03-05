@@ -8,7 +8,8 @@ import { computeRoutes } from './computes'
 
 type Bindings = {
   DATABASE_URL: string
-  ORTOOLS_URL: string
+  vrp_api_python: string
+  vrp_api_rust: string
   API_BASE_URL: string
   GOOGLE_ROUTES_API_KEY: string
 }

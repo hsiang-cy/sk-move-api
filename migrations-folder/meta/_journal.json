@@ -50,6 +50,13 @@
       "when": 1772679591788,
       "tag": "0006_freezing_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1772683850987,
+      "tag": "0007_common_shiva",
+      "breakpoints": true
     }
   ]
 }

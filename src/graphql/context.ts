@@ -7,7 +7,8 @@ export type Context = {
   env: {
     DATABASE_URL: string
     JWT_SECRET: string
-    ORTOOLS_URL: string
+    vrp_api_python: string
+    vrp_api_rust: string
     API_BASE_URL: string
     GOOGLE_ROUTES_API_KEY: string
     QSTASH_URL: string

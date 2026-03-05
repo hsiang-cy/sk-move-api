@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { eq } from 'drizzle-orm'
+import { Receiver } from '@upstash/qstash'
 import { createDb } from '../db/connect'
 import { compute as computeTable, route as routeTable, route_stop as routeStopTable } from '../db/schema'
 
@@ -11,77 +12,52 @@ type Bindings = {
 
 export const webhookRoutes = new Hono<{ Bindings: Bindings }>()
 
-// ── QStash 簽名驗證 ────────────────────────────────────────────────────────────
-// QStash callback 的 Upstash-Signature header 是 HMAC-SHA256 JWT
-
-async function verifyQStashSignature(
-  signature: string,
-  signingKey: string,
-  bodyText: string,
-): Promise<boolean> {
-  try {
-    const parts = signature.split('.')
-    if (parts.length !== 3) return false
-    const [headerB64, payloadB64, sigB64] = parts
-
-    const key = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(signingKey),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['verify'],
-    )
-
-    const b64ToBytes = (s: string) =>
-      Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0))
-
-    const valid = await crypto.subtle.verify(
-      'HMAC',
-      key,
-      b64ToBytes(sigB64),
-      new TextEncoder().encode(`${headerB64}.${payloadB64}`),
-    )
-    if (!valid) return false
-
-    const payload = JSON.parse(atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/')))
-    if (payload.exp < Math.floor(Date.now() / 1000)) return false
-
-    // 驗證 body hash（hex SHA-256）
-    const bodyHashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(bodyText))
-    const bodyHash = Array.from(new Uint8Array(bodyHashBuf))
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('')
-    if (payload.body !== bodyHash) return false
-
-    return true
-  } catch {
-    return false
-  }
-}
-
 // ── /internal/vrp-callback ────────────────────────────────────────────────────
 
 webhookRoutes.post('/internal/vrp-callback', async (c) => {
   const bodyText = await c.req.text()
   const signature = c.req.header('Upstash-Signature') ?? ''
 
-  // 驗證 QStash 簽名（先試 current key，輪換期間再試 next key）
-  const verified =
-    (await verifyQStashSignature(signature, c.env.QSTASH_CURRENT_SIGNING_KEY, bodyText)) ||
-    (await verifyQStashSignature(signature, c.env.QSTASH_NEXT_SIGNING_KEY, bodyText))
+  const receiver = new Receiver({
+    currentSigningKey: c.env.QSTASH_CURRENT_SIGNING_KEY,
+    nextSigningKey: c.env.QSTASH_NEXT_SIGNING_KEY,
+  })
 
-  if (!verified) {
+  try {
+    await receiver.verify({ signature, body: bodyText })
+  } catch {
     return c.json({ error: 'Unauthorized' }, 401)
   }
 
-  let body: any
+  // QStash Callback envelope: { status, header, body (base64), url, callType }
+  let envelope: any
   try {
-    body = JSON.parse(bodyText)
+    envelope = JSON.parse(bodyText)
   } catch {
     return c.json({ error: 'Invalid JSON' }, 400)
   }
 
-  // Rust API 將 compute_id echo 回 response
+  let body: any
+  try {
+    const decoded = atob(envelope.body)
+    body = JSON.parse(decoded)
+  } catch {
+    return c.json({ error: 'Invalid callback body' }, 400)
+  }
+
+  if (envelope.status !== 200) {
+    const db = createDb(c.env.DATABASE_URL)
+    const now = Math.floor(Date.now() / 1000)
+    const { compute_id } = body
+    if (typeof compute_id === 'number') {
+      await db.update(computeTable)
+        .set({ compute_status: 'failed', fail_reason: `VRP API 回傳 ${envelope.status}`, end_time: now, updated_at: now })
+        .where(eq(computeTable.id, compute_id))
+    }
+    return c.json({ ok: true })
+  }
+
+  // Python API 將 compute_id echo 回 response
   const { compute_id, status, routes, message } = body
 
   if (typeof compute_id !== 'number') {
