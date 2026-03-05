@@ -191,39 +191,49 @@ export const order = pgTable('order', {
     index().on(table.account_id),
 ]));
 
-// 一次計算任務
-export const compute = pgTable('compute', {
+// 一次計算任務(用戶按下一次計算)
+export const compute_one_click = pgTable('compute_one_click', {
+    created_at: bigint('created_at', { mode: 'number' }).default(sql`EXTRACT(EPOCH FROM NOW())::bigint`),
+    updated_at: bigint('updated_at', { mode: 'number' }),
+    status: statusEnum('status').notNull().default('active'), // inactive, active, deleted
+
     account_id: integer('account_id').notNull().references(() => account.account_id, { onDelete: 'cascade' }),
     id: serial('id').primaryKey(),
     order_id: integer('order_id').notNull().references(() => order.id), // 對應的訂單
-    status: statusEnum('status').notNull().default('active'), // inactive, active, deleted
 
-    compute_status: computeStatus('compute_status').notNull().default('initial'),
-    start_time: bigint('start_time', { mode: 'number' }),
-    end_time: bigint('end_time', { mode: 'number' }),
-    fail_reason: text('fail_reason'),
+    start_time: bigint('start_time', { mode: 'number' }), // 點擊開始計算的時間
 
-    data: jsonb('data'),
-    /*
-    compute_policy 計算策略描述 ex:
-    {
-    time_limit_seconds: 30,
-    fixed_vehicle_cost: 1000,
-    first_solution_strategy: "PATH_CHEAPEST_ARC"
-    }
-
-    result  改存到 route 跟 route_stop 表
-    matrix  從 info_between_two_point 動態使用
-    */
-
-    created_at: bigint('created_at', { mode: 'number' }).default(sql`EXTRACT(EPOCH FROM NOW())::bigint`),
-    updated_at: bigint('updated_at', { mode: 'number' }),
+    data: jsonb('data'),    //  其餘可能要記錄的東西
 
     comment_for_account: text('comment_for_account'), // 給使用者看的備註欄位，使用者會看到
 
 }, (table) => ([
     index().on(table.account_id),
     index().on(table.order_id),
+]));
+
+// 一次計算點擊可以觸發多次計算（不同演算法、策略、參數）
+export const compute = pgTable('compute', {
+    id: serial('id').primaryKey(),
+    compute_one_click_id: integer('compute_one_click_id').notNull().references(() => compute_one_click.id, { onDelete: 'cascade' }),
+    status: statusEnum('status').notNull().default('active'),
+
+    compute_status: computeStatus('compute_status').notNull().default('initial'),
+    start_time: bigint('start_time', { mode: 'number' }),
+    end_time: bigint('end_time', { mode: 'number' }),
+    fail_reason: text('fail_reason'),
+
+    algo_parameter: jsonb('algo_parameter'), // 使用的算法端點、策略、參數等
+
+    data: jsonb('data'),
+
+    comment_for_account: text('comment_for_account'),
+    comment_for_dev: text('comment_for_dev'),
+
+    created_at: bigint('created_at', { mode: 'number' }).default(sql`EXTRACT(EPOCH FROM NOW())::bigint`),
+    updated_at: bigint('updated_at', { mode: 'number' }),
+}, (table) => ([
+    index().on(table.compute_one_click_id),
 ]));
 
 // 計算完成後，一條路線（對應一輛車）

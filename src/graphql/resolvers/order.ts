@@ -1,5 +1,10 @@
-import { and, eq, inArray } from 'drizzle-orm'
-import { order as orderTable, compute as computeTable, info_between_two_point as infoBetweenTable } from '../../db/schema'
+import { and, eq, getTableColumns, inArray } from 'drizzle-orm'
+import {
+  order as orderTable,
+  compute as computeTable,
+  compute_one_click as computeOneClickTable,
+  info_between_two_point as infoBetweenTable,
+} from '../../db/schema'
 import { requireAuth, type Context } from '../context'
 
 export const orderTypeDefs = /* GraphQL */ `
@@ -175,6 +180,9 @@ export const orderResolvers = {
   },
   Order: {
     computes: (parent: { id: number }, _: any, { db }: Context) =>
-      db.select().from(computeTable).where(eq(computeTable.order_id, parent.id))
+      db.select(getTableColumns(computeTable))
+        .from(computeTable)
+        .innerJoin(computeOneClickTable, eq(computeTable.compute_one_click_id, computeOneClickTable.id))
+        .where(eq(computeOneClickTable.order_id, parent.id)),
   }
 }

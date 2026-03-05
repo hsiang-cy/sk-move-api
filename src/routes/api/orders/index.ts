@@ -1,10 +1,11 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { HTTPException } from 'hono/http-exception'
-import { and, eq, inArray, ne } from 'drizzle-orm'
+import { and, eq, getTableColumns, inArray, ne } from 'drizzle-orm'
 import { createDb } from '../../../db/connect'
 import {
   order as orderTable,
   compute as computeTable,
+  compute_one_click as computeOneClickTable,
   destination as destinationTable,
   vehicle as vehicleTable,
   custom_vehicle_type as vehicleTypeTable,
@@ -343,13 +344,22 @@ orderRoutes.openapi(triggerComputeRoute, async (c) => {
     .limit(1)
   if (!order) throw new HTTPException(404, { message: '找不到訂單' })
 
-  const [compute] = await db.insert(computeTable).values({
+  const [click] = await db.insert(computeOneClickTable).values({
     account_id,
     order_id,
+    start_time: now,
     data: body.data,
     comment_for_account: body.comment_for_account,
+  }).returning()
+
+  const [compute] = await db.insert(computeTable).values({
+    compute_one_click_id: click.id,
     compute_status: 'pending',
     start_time: now,
+    algo_parameter: {
+      endpoint: '/vrp/solve',
+      ...(body.time_limit_seconds != null && { time_limit_seconds: body.time_limit_seconds }),
+    },
   }).returning()
 
   const markFailed = (reason: string) =>
@@ -444,7 +454,9 @@ orderRoutes.openapi(listOrderComputesRoute, async (c) => {
     .limit(1)
   if (!order) throw new HTTPException(404, { message: '找不到資源' })
 
-  const items = await db.select().from(computeTable)
-    .where(eq(computeTable.order_id, order_id))
+  const items = await db.select(getTableColumns(computeTable))
+    .from(computeTable)
+    .innerJoin(computeOneClickTable, eq(computeTable.compute_one_click_id, computeOneClickTable.id))
+    .where(eq(computeOneClickTable.order_id, order_id))
   return c.json(items, 200)
 })

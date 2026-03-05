@@ -1,9 +1,10 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { HTTPException } from 'hono/http-exception'
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, eq, getTableColumns } from 'drizzle-orm'
 import { createDb } from '../../../db/connect'
 import {
   compute as computeTable,
+  compute_one_click as computeOneClickTable,
   route as routeTable,
   route_stop as routeStopTable,
   vehicle as vehicleTable,
@@ -19,13 +20,13 @@ type Env = { Bindings: Bindings; Variables: ApiVariables }
 
 const _computeFields = {
   id: z.number().int(),
-  account_id: z.number().int(),
-  order_id: z.number().int(),
+  compute_one_click_id: z.number().int(),
   status: StatusEnum,
   compute_status: ComputeStatusEnum,
   start_time: z.number().nullable(),
   end_time: z.number().nullable(),
   fail_reason: z.string().nullable(),
+  algo_parameter: z.any(),
   data: z.any(),
   comment_for_account: z.string().nullable(),
   created_at: z.number().nullable(),
@@ -85,8 +86,14 @@ computeRoutes.openapi(getComputeRoute, async (c) => {
   const account_id = c.get('account_id')
   const { id: compute_id } = c.req.valid('param')
 
-  const [compute] = await db.select().from(computeTable)
-    .where(and(eq(computeTable.id, compute_id), eq(computeTable.account_id, account_id)))
+  // 透過 compute_one_click 驗證 account_id 所有權
+  const [compute] = await db.select(getTableColumns(computeTable))
+    .from(computeTable)
+    .innerJoin(computeOneClickTable, eq(computeTable.compute_one_click_id, computeOneClickTable.id))
+    .where(and(
+      eq(computeTable.id, compute_id),
+      eq(computeOneClickTable.account_id, account_id),
+    ))
     .limit(1)
   if (!compute) throw new HTTPException(404, { message: '找不到資源' })
 

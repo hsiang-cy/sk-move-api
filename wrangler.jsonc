@@ -4,7 +4,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-02-19",
   "vars": {
-    "API_BASE_URL": "https://api.tile-zip.workers.dev"
+    "API_BASE_URL": "https://api.tile.workers.dev"
   }
   // Secrets (set via `wrangler secret put <NAME>`):
   // DATABASE_URL, JWT_SECRET, GOOGLE_ROUTES_API_KEY, ORTOOLS_URL
