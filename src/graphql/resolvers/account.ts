@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, asc } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 import { sign } from 'hono/jwt'
 import { account as accountTable, point_log } from '../../db/schema'
@@ -39,6 +39,8 @@ export const accountTypeDefs = /* GraphQL */ `
   extend type Query {
     me: Account
     pointLogs: [PointLog!]!
+    accounts: [Account!]!
+    account(account_id: ID!): Account
   }
 
   extend type Mutation {
@@ -61,6 +63,19 @@ export const accountResolvers = {
     pointLogs: async (_: any, __: any, { db, user }: Context) => {
       requireAuth(user)
       return db.select().from(point_log).where(eq(point_log.account_id, user!.account_id))
+    },
+    accounts: async (_: any, __: any, { db, user }: Context) => {
+      requireAuth(user, 'manager')
+      return db.select().from(accountTable).orderBy(asc(accountTable.created_at))
+    },
+    account: async (_: any, { account_id }: { account_id: string }, { db, user }: Context) => {
+      requireAuth(user, 'manager')
+      const [found] = await db
+        .select()
+        .from(accountTable)
+        .where(eq(accountTable.account_id, account_id))
+        .limit(1)
+      return found ?? null
     }
   },
   Mutation: {

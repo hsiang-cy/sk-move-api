@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { createYoga } from 'graphql-yoga'
+import { GraphQLError } from 'graphql'
 import { createDb } from './db/connect'
 import { schema, Context } from './graphql/schema'
 import { verify } from 'hono/jwt'
@@ -53,6 +54,13 @@ app
 // GraphQL Yoga Handler
 const yoga = createYoga<{ request: Request; env: Bindings }, Context>({
   schema,
+  maskedErrors: {
+    maskError(error, message, isDev) {
+      if (error instanceof GraphQLError) return error
+      console.error(error)
+      return new GraphQLError(message)
+    }
+  },
   context: async ({ request, env }) => {
     // 獲取 Database instance (Drizzle)
     const database = createDb(env.DATABASE_URL)
