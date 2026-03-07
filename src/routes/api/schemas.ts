@@ -1,6 +1,6 @@
 import { z } from '@hono/zod-openapi'
 
-// ── Common ─────────────────────────────────────────────────────────────────────
+// Common  ─────────────────
 
 export const ErrorSchema = z.object({
   error: z.string().openapi({ example: '找不到資源' }),

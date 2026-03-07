@@ -61,8 +61,8 @@ importers:
         specifier: ^4.21.0
         version: 4.21.0
       typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
+        specifier: 6.0.1-rc
+        version: 6.0.1-rc
       wrangler:
         specifier: ^4.4.0
         version: 4.70.0(@cloudflare/workers-types@4.20260301.1)
@@ -1166,8 +1166,8 @@ packages:
     resolution: {integrity: sha512-JnTrzGu+zPV3aXIUhnyWJj4z/wigMsdYajGLIYakqyOW1nPllzXEJee0QQbHj+CTIQtXGlAjuK0UY+2xTyjVAw==}
     engines: {node: '>=20'}
 
-  typescript@5.9.3:
-    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+  typescript@6.0.1-rc:
+    resolution: {integrity: sha512-7XlzYb+p/7YxX6qSOzwB4mxVFRdAgWWkj1PgAZ+jzldeuFV6Z77vwFbNxHsUXAL/bhlWY2jCT8shLwDJR8337g==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -2074,7 +2074,7 @@ snapshots:
     dependencies:
       tagged-tag: 1.0.0
 
-  typescript@5.9.3: {}
+  typescript@6.0.1-rc: {}
 
   undici-types@6.21.0: {}
 

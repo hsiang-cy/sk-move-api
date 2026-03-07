@@ -16,7 +16,7 @@ import { ErrorSchema, IdParam, StatusEnum, ComputeStatusEnum, validationHook } f
 type Bindings = { DATABASE_URL: string }
 type Env = { Bindings: Bindings; Variables: ApiVariables }
 
-// ── Schemas ────────────────────────────────────────────────────────────────────
+// Schemas  ────────────────
 
 const _computeFields = {
   id: z.string().uuid(),
@@ -65,7 +65,7 @@ export const ComputeWithRoutesSchema = z.object({
   routes: z.array(RouteWithStopsSchema),
 }).openapi('ComputeWithRoutes')
 
-// ── Router ────────────────────────────────────────────────────────────────────
+// Router  ────────────────
 
 export const computeRoutes = new OpenAPIHono<Env>({ defaultHook: validationHook })
 

@@ -18,7 +18,7 @@ type Bindings = {
 
 export const webhookRoutes = new Hono<{ Bindings: Bindings }>()
 
-// ── /internal/vrp-callback ────────────────────────────────────────────────────
+// /internal/vrp-callback  
 // BentoV1 response envelope（由 QStash 包裝）：
 //   { status: number, header: {...}, body: "<base64>", url: string, callType: "callback" }
 // body 解碼後為 BentoV1 response：

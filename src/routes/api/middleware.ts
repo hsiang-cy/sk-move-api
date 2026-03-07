@@ -8,7 +8,7 @@ type Bindings = { DATABASE_URL: string }
 
 export type ApiVariables = {
   account_id: string
-  token_id: string
+  token_id: number
 }
 
 export const tokenAuth = createMiddleware<{ Bindings: Bindings; Variables: ApiVariables }>(

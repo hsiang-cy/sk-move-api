@@ -13,7 +13,7 @@ import { ErrorSchema, OkSchema, IdParam, StatusEnum, validationHook } from '../s
 type Bindings = { DATABASE_URL: string }
 type Env = { Bindings: Bindings; Variables: ApiVariables }
 
-// ── Schemas ────────────────────────────────────────────────────────────────────
+// Schemas  ────────────────
 
 const BentoOrderItemSchema = z.object({
   id: z.number().int(),
@@ -55,7 +55,7 @@ export const CreateBentoOrderBody = z.object({
   data: z.any().optional(),
 }).openapi('CreateBentoOrderBody')
 
-// ── Router ────────────────────────────────────────────────────────────────────
+// Router  ────────────────
 
 export const bentoOrderRoutes = new OpenAPIHono<Env>({ defaultHook: validationHook })
 
@@ -64,7 +64,7 @@ const security = [{ Bearer: [] }]
 const auth401 = { content: { 'application/json': { schema: ErrorSchema } }, description: '未授權' }
 const notFound404 = { content: { 'application/json': { schema: ErrorSchema } }, description: '找不到資源' }
 
-// ── Routes ────────────────────────────────────────────────────────────────────
+// Routes  ────────────────
 
 const listBentoOrdersRoute = createRoute({
   method: 'get', path: '/', tags, summary: '取得所有便當訂單', security,
@@ -105,7 +105,7 @@ const deleteBentoOrderRoute = createRoute({
   },
 })
 
-// ── Helper: 查詢單筆訂單並附帶品項 ────────────────────────────────────────────
+// Helper: 查詢單筆訂單並附帶品項 ────────────────────────────────────────────
 
 async function fetchOrderWithItems(db: ReturnType<typeof createDb>, orderId: string, accountId: string) {
   const [order] = await db.select().from(bentoOrderTable)
@@ -123,7 +123,7 @@ async function fetchOrderWithItems(db: ReturnType<typeof createDb>, orderId: str
   return { ...order, items }
 }
 
-// ── Handlers ──────────────────────────────────────────────────────────────────
+// Handlers  ──────────────
 
 bentoOrderRoutes.openapi(listBentoOrdersRoute, async (c) => {
   const db = createDb(c.env.DATABASE_URL)

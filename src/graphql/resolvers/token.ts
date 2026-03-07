@@ -39,7 +39,7 @@ export const tokenResolvers = {
       requireAuth(user)
       const [found] = await db.select().from(tokenTable)
         .where(and(
-          eq(tokenTable.id, args.id),
+          eq(tokenTable.id, parseInt(args.id)),
           eq(tokenTable.account_id, user!.account_id),
           ne(tokenTable.status, 'deleted'),
         ))
@@ -98,7 +98,7 @@ export const tokenResolvers = {
       const [updated] = await db.update(tokenTable)
         .set({ status: 'inactive', updated_at: now })
         .where(and(
-          eq(tokenTable.id, args.id),
+          eq(tokenTable.id, parseInt(args.id)),
           eq(tokenTable.account_id, user!.account_id),
         ))
         .returning()
@@ -118,7 +118,7 @@ export const tokenResolvers = {
       const [updated] = await db.update(tokenTable)
         .set({ status: 'deleted', updated_at: now })
         .where(and(
-          eq(tokenTable.id, args.id),
+          eq(tokenTable.id, parseInt(args.id)),
           eq(tokenTable.account_id, user!.account_id),
         ))
         .returning()

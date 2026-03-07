@@ -9,7 +9,7 @@ import { ErrorSchema, OkSchema, IdParam, StatusEnum, validationHook } from '../s
 type Bindings = { DATABASE_URL: string }
 type Env = { Bindings: Bindings; Variables: ApiVariables }
 
-// ── Schemas ────────────────────────────────────────────────────────────────────
+// Schemas  ────────────────
 
 export const DestinationSchema = z.object({
   id: z.string().uuid(),
@@ -43,7 +43,7 @@ export const UpdateDestinationBody = z.object({
   comment_for_account: z.string().optional(),
 }).openapi('UpdateDestinationBody')
 
-// ── Router ────────────────────────────────────────────────────────────────────
+// Router  ────────────────
 
 export const destinationRoutes = new OpenAPIHono<Env>({ defaultHook: validationHook })
 
@@ -52,7 +52,7 @@ const security = [{ Bearer: [] }]
 const auth401 = { content: { 'application/json': { schema: ErrorSchema } }, description: '未授權' }
 const notFound404 = { content: { 'application/json': { schema: ErrorSchema } }, description: '找不到資源' }
 
-// ── Routes ────────────────────────────────────────────────────────────────────
+// Routes  ────────────────
 
 const listDestinationsRoute = createRoute({
   method: 'get', path: '/', tags, summary: '取得所有地點', security,
@@ -105,7 +105,7 @@ const deleteDestinationRoute = createRoute({
   },
 })
 
-// ── Handlers ──────────────────────────────────────────────────────────────────
+// Handlers  ──────────────
 
 destinationRoutes.openapi(listDestinationsRoute, async (c) => {
   const db = createDb(c.env.DATABASE_URL)

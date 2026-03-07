@@ -2,9 +2,13 @@
   "name": "saki-move-api",
   "type": "module",
   "packageManager": "pnpm@10.17.1",
+  "imports": {
+    "#/*": "./src/*"
+  },
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --minify",
+    "type": "tsc --noEmit",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "generate": "drizzle-kit generate --config=src/db/drizzle.config.ts",
     "migrate": "drizzle-kit migrate --config=src/db/drizzle.config.ts"
@@ -29,7 +33,7 @@
     "@types/node": "^25.3.0",
     "drizzle-kit": "^0.31.9",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
+    "typescript": "6.0.1-rc",
     "wrangler": "^4.4.0"
   }
 }

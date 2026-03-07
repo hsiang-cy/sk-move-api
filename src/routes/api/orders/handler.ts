@@ -372,7 +372,7 @@ orderRoutes.openapi(triggerComputeRoute, async (c) => {
 
   const vrpUrl = `${c.env.vrp_api_python}/vrp/bento/v1/solve`
 
-  // ── QStash 非同步模式（Workers 部署時啟用）────────────────────────────────
+  // QStash 非同步模式（Workers 部署時啟用）────────────────────────────────
   // const qstashPublishUrl = `${c.env.QSTASH_URL}/v2/publish/${vrpUrl}`
   // try {
   //   const res = await fetch(qstashPublishUrl, {
@@ -394,7 +394,7 @@ orderRoutes.openapi(triggerComputeRoute, async (c) => {
   // }
   // return c.json(compute, 202)
 
-  // ── 同步直接呼叫（本地開發用，無 Workers 時長限制）──────────────────────
+  // 同步直接呼叫（本地開發用，無 Workers 時長限制）──────────────────────
   const locByIdx: Record<number, string> = Object.fromEntries(locationSnapshot.map(l => [l.idx, l.db_id]))
   const vehByIdx: Record<number, string> = Object.fromEntries(vehicleSnapshot.map(v => [v.idx, v.db_id]))
 

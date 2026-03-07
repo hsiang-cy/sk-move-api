@@ -17,7 +17,7 @@ type Bindings = {
 
 const api = new OpenAPIHono<{ Bindings: Bindings }>()
 
-// ── 安全機制（Bearer Token）────────────────────────────────────────────────────
+// 安全機制（Bearer Token） 
 
 api.openAPIRegistry.registerComponent('securitySchemes', 'Bearer', {
   type: 'http',
@@ -25,7 +25,7 @@ api.openAPIRegistry.registerComponent('securitySchemes', 'Bearer', {
   description: 'API Token（格式：sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx）',
 })
 
-// ── 文件端點（不需 auth）────────────────────────────────────────────────────────
+// 文件端點（不需 auth） ────
 
 api.doc31('/openapi.json', {
   openapi: '3.1.0',
@@ -40,7 +40,7 @@ api.get('/docs', apiReference({
   url: '/api/v1/openapi.json',
 }))
 
-// ── 受保護的資源路由 ────────────────────────────────────────────────────────────
+// 受保護的資源路由  ────────
 
 api.use('/destinations/*', tokenAuth)
 api.use('/vehicle-types/*', tokenAuth)
