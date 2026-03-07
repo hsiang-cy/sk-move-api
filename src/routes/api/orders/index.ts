@@ -30,8 +30,8 @@ type Env = { Bindings: Bindings; Variables: ApiVariables }
 // ── Schemas ────────────────────────────────────────────────────────────────────
 
 export const OrderSchema = z.object({
-  id: z.string().uuid(),
-  account_id: z.string().uuid(),
+  id: z.uuid(),
+  account_id: z.uuid(),
   status: StatusEnum,
   data: z.any(),
   location_snapshot: z.any(),
@@ -43,11 +43,11 @@ export const OrderSchema = z.object({
 }).openapi('Order')
 
 export const CreateOrderBody = z.object({
-  bento_order_ids: z.array(z.string().uuid()).min(1, '至少需要 1 筆便當訂單').openapi({
+  bento_order_ids: z.array(z.uuid()).min(1, '至少需要 1 筆便當訂單').openapi({
     description: '便當訂單 UUID 陣列',
     example: ['018f3a2b-0001-7abc-8def-000000000001'],
   }),
-  vehicle_ids: z.array(z.string().uuid()).min(1, '至少需要 1 輛車輛').openapi({
+  vehicle_ids: z.array(z.uuid()).min(1, '至少需要 1 輛車輛').openapi({
     description: '車輛 UUID 陣列',
     example: ['018f3a2b-0002-7abc-8def-000000000002'],
   }),
@@ -241,49 +241,58 @@ orderRoutes.openapi(createOrderRoute, async (c) => {
       waypoint: { location: { latLng: { latitude: parseFloat(d.lat), longitude: parseFloat(d.lng) } } },
     }))
 
-    const response = await fetch(
-      'https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': c.env.GOOGLE_ROUTES_API_KEY,
-          'X-Goog-FieldMask': 'originIndex,destinationIndex,distanceMeters,duration,condition',
-        },
-        body: JSON.stringify({
-          origins: waypoints,
-          destinations: waypoints,
-          travelMode: 'DRIVE',
-          routingPreference: 'TRAFFIC_UNAWARE',
-        }),
-      }
-    )
-
-    if (!response.ok) {
-      throw new HTTPException(502, { message: `Google Routes API 發生錯誤：${response.status}` })
-    }
-
-    const entries = (await response.json()) as Array<{
-      originIndex: number; destinationIndex: number
-      distanceMeters: number; duration: string; condition: string
-    }>
-
+    // Google Routes API 上限 625 elements（origins × destinations）
+    const chunkSize = Math.max(1, Math.floor(625 / waypoints.length))
     const newRows: Array<{ a_point: string; b_point: string; distance_from_a_to_b: string; time_from_a_to_b: string }> = []
-    for (const entry of entries) {
-      if (entry.originIndex === entry.destinationIndex) continue
-      const key = `${locationIds[entry.originIndex]}-${locationIds[entry.destinationIndex]}`
-      if (!missingPairs.has(key)) continue
-      if (entry.condition !== 'ROUTE_EXISTS') {
-        throw new HTTPException(422, { message: `無法計算地點之間的路線（${locationIds[entry.originIndex]} → ${locationIds[entry.destinationIndex]}）` })
+
+    for (let start = 0; start < waypoints.length; start += chunkSize) {
+      const originBatch = waypoints.slice(start, start + chunkSize)
+
+      const response = await fetch(
+        'https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': c.env.GOOGLE_ROUTES_API_KEY,
+            'X-Goog-FieldMask': 'originIndex,destinationIndex,distanceMeters,duration,condition',
+          },
+          body: JSON.stringify({
+            origins: originBatch,
+            destinations: waypoints,
+            travelMode: 'DRIVE',
+            routingPreference: 'TRAFFIC_UNAWARE',
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        throw new HTTPException(502, { message: '第三方服務錯誤' })
       }
-      const durationSeconds = parseInt(entry.duration.replace('s', ''), 10)
-      newRows.push({
-        a_point: locationIds[entry.originIndex],
-        b_point: locationIds[entry.destinationIndex],
-        distance_from_a_to_b: String(entry.distanceMeters),
-        time_from_a_to_b: String(Math.round(durationSeconds / 60)),
-      })
+
+      const entries = (await response.json()) as Array<{
+        originIndex: number; destinationIndex: number
+        distanceMeters: number; duration: string; condition: string
+      }>
+
+      for (const entry of entries) {
+        const actualOriginIdx = start + entry.originIndex
+        if (actualOriginIdx === entry.destinationIndex) continue
+        const key = `${destinations[actualOriginIdx].id}-${destinations[entry.destinationIndex].id}`
+        if (!missingPairs.has(key)) continue
+        if (entry.condition !== 'ROUTE_EXISTS') {
+          throw new HTTPException(422, { message: `無法計算地點之間的路線（${destinations[actualOriginIdx].id} → ${destinations[entry.destinationIndex].id}）` })
+        }
+        const durationSeconds = parseInt(entry.duration.replace('s', ''), 10)
+        newRows.push({
+          a_point: destinations[actualOriginIdx].id,
+          b_point: destinations[entry.destinationIndex].id,
+          distance_from_a_to_b: String(entry.distanceMeters),
+          time_from_a_to_b: String(Math.round(durationSeconds / 60)),
+        })
+      }
     }
+
     if (newRows.length > 0) await db.insert(infoBetweenTable).values(newRows)
   }
 
