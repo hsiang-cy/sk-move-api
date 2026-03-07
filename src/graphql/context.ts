@@ -3,7 +3,7 @@ import * as schema_db from '../db/schema'
 
 export type Context = {
   db: NeonHttpDatabase<typeof schema_db>
-  user: { account_id: number; account_role: string } | null
+  user: { account_id: string; account_role: string } | null
   env: {
     DATABASE_URL: string
     JWT_SECRET: string
@@ -19,7 +19,6 @@ export type Context = {
 }
 
 const ROLE_ORDER = ['just_view', 'guest', 'normal', 'manager', 'admin']
-
 
 export function requireAuth(user: Context['user'], minRole = 'just_view'): void {
   if (!user) throw new Error('Unauthorized')

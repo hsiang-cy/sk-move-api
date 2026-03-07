@@ -5,6 +5,7 @@ import { destinationRoutes } from './destinations'
 import { vehicleTypeRoutes, vehicleRoutes } from './vehicles'
 import { orderRoutes } from './orders'
 import { computeRoutes } from './computes'
+import { bentoOrderRoutes } from './bento-orders'
 
 type Bindings = {
   DATABASE_URL: string
@@ -44,12 +45,14 @@ api.get('/docs', apiReference({
 api.use('/destinations/*', tokenAuth)
 api.use('/vehicle-types/*', tokenAuth)
 api.use('/vehicles/*', tokenAuth)
+api.use('/bento-orders/*', tokenAuth)
 api.use('/orders/*', tokenAuth)
 api.use('/computes/*', tokenAuth)
 
 api.route('/destinations', destinationRoutes)
 api.route('/vehicle-types', vehicleTypeRoutes)
 api.route('/vehicles', vehicleRoutes)
+api.route('/bento-orders', bentoOrderRoutes)
 api.route('/orders', orderRoutes)
 api.route('/computes', computeRoutes)
 

@@ -19,8 +19,8 @@ type Env = { Bindings: Bindings; Variables: ApiVariables }
 // ── Schemas ────────────────────────────────────────────────────────────────────
 
 const _computeFields = {
-  id: z.number().int(),
-  compute_one_click_id: z.number().int(),
+  id: z.string().uuid(),
+  compute_one_click_id: z.string().uuid(),
   status: StatusEnum,
   compute_status: ComputeStatusEnum,
   start_time: z.number().nullable(),
@@ -37,19 +37,20 @@ export const ComputeSchema = z.object(_computeFields).openapi('Compute')
 
 const RouteStopSchema = z.object({
   id: z.number().int(),
-  route_id: z.number().int(),
-  destination_id: z.number().int(),
+  route_id: z.string().uuid(),
+  destination_id: z.string().uuid(),
   sequence: z.number().int(),
   arrival_time: z.number().int(),
-  demand: z.number().int(),
+  action: z.string(),
+  bento_order_ids: z.any(),
   created_at: z.number().nullable(),
   destination: z.any().nullable(),
 }).openapi('RouteStop')
 
 const RouteWithStopsSchema = z.object({
-  id: z.number().int(),
-  compute_id: z.number().int(),
-  vehicle_id: z.number().int(),
+  id: z.string().uuid(),
+  compute_id: z.string().uuid(),
+  vehicle_id: z.string().uuid(),
   status: StatusEnum,
   total_distance: z.number().int(),
   total_time: z.number().int(),
@@ -86,7 +87,6 @@ computeRoutes.openapi(getComputeRoute, async (c) => {
   const account_id = c.get('account_id')
   const { id: compute_id } = c.req.valid('param')
 
-  // 透過 compute_one_click 驗證 account_id 所有權
   const [compute] = await db.select(getTableColumns(computeTable))
     .from(computeTable)
     .innerJoin(computeOneClickTable, eq(computeTable.compute_one_click_id, computeOneClickTable.id))

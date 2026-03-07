@@ -7,8 +7,8 @@ import { token as tokenTable } from '../../db/schema'
 type Bindings = { DATABASE_URL: string }
 
 export type ApiVariables = {
-  account_id: number
-  token_id: number
+  account_id: string
+  token_id: string
 }
 
 export const tokenAuth = createMiddleware<{ Bindings: Bindings; Variables: ApiVariables }>(

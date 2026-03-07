@@ -12,7 +12,7 @@ import { requireAuth, type Context } from '../context'
 export const computeTypeDefs = /* GraphQL */ `
   type Compute {
     id:                    ID!
-    compute_one_click_id:  Int!
+    compute_one_click_id:  ID!
     status:                Status!
     compute_status:        ComputeStatus!
     start_time:            Float
@@ -28,8 +28,8 @@ export const computeTypeDefs = /* GraphQL */ `
 
   type Route {
     id:             ID!
-    compute_id:     Int!
-    vehicle_id:     Int!
+    compute_id:     ID!
+    vehicle_id:     ID!
     status:         Status!
     total_distance: Int!
     total_time:     Int!
@@ -40,14 +40,15 @@ export const computeTypeDefs = /* GraphQL */ `
   }
 
   type RouteStop {
-    id:             ID!
-    route_id:       Int!
-    destination_id: Int!
-    sequence:       Int!
-    arrival_time:   Int!
-    demand:         Int!
-    created_at:     Float
-    destination:    Destination
+    id:               ID!
+    route_id:         ID!
+    destination_id:   ID!
+    sequence:         Int!
+    arrival_time:     Int!
+    action:           String!
+    bento_order_ids:  JSON
+    created_at:       Float
+    destination:      Destination
   }
 
   extend type Query {
@@ -61,7 +62,7 @@ export const computeResolvers = {
     computes: async (_: any, args: { orderId?: string; status?: string }, { db, user }: Context) => {
       requireAuth(user)
       const conditions: any[] = [eq(computeOneClickTable.account_id, user!.account_id)]
-      if (args.orderId) conditions.push(eq(computeOneClickTable.order_id, parseInt(args.orderId)))
+      if (args.orderId) conditions.push(eq(computeOneClickTable.order_id, args.orderId))
       if (args.status) conditions.push(eq(computeTable.compute_status, args.status as any))
       return db.select(getTableColumns(computeTable))
         .from(computeTable)
@@ -74,7 +75,7 @@ export const computeResolvers = {
         .from(computeTable)
         .innerJoin(computeOneClickTable, eq(computeTable.compute_one_click_id, computeOneClickTable.id))
         .where(and(
-          eq(computeTable.id, parseInt(args.id)),
+          eq(computeTable.id, args.id),
           eq(computeOneClickTable.account_id, user!.account_id),
         ))
         .limit(1)
@@ -82,20 +83,20 @@ export const computeResolvers = {
     },
   },
   Compute: {
-    routes: (parent: { id: number }, _: any, { db }: Context) =>
+    routes: (parent: { id: string }, _: any, { db }: Context) =>
       db.select().from(routeTable).where(eq(routeTable.compute_id, parent.id)),
   },
   Route: {
-    vehicle: (parent: { vehicle_id: number }, _: any, { db }: Context) =>
+    vehicle: (parent: { vehicle_id: string }, _: any, { db }: Context) =>
       db.select().from(vehicleTable).where(eq(vehicleTable.id, parent.vehicle_id)).limit(1)
         .then(r => r[0] ?? null),
-    stops: (parent: { id: number }, _: any, { db }: Context) =>
+    stops: (parent: { id: string }, _: any, { db }: Context) =>
       db.select().from(routeStopTable)
         .where(eq(routeStopTable.route_id, parent.id))
         .orderBy(asc(routeStopTable.sequence)),
   },
   RouteStop: {
-    destination: (parent: { destination_id: number }, _: any, { db }: Context) =>
+    destination: (parent: { destination_id: string }, _: any, { db }: Context) =>
       db.select().from(destinationTable).where(eq(destinationTable.id, parent.destination_id)).limit(1)
         .then(r => r[0] ?? null),
   },

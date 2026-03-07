@@ -1,11 +1,13 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { HTTPException } from 'hono/http-exception'
-import { and, eq, getTableColumns, inArray, ne } from 'drizzle-orm'
+import { and, eq, inArray, ne } from 'drizzle-orm'
 import { createDb } from '../../../db/connect'
 import {
   order as orderTable,
   compute as computeTable,
   compute_one_click as computeOneClickTable,
+  bento_order as bentoOrderTable,
+  bento_order_item as bentoOrderItemTable,
   destination as destinationTable,
   vehicle as vehicleTable,
   custom_vehicle_type as vehicleTypeTable,
@@ -18,7 +20,6 @@ import { ComputeSchema } from '../computes'
 type Bindings = {
   DATABASE_URL: string
   vrp_api_python: string
-  vrp_api_rust: string
   API_BASE_URL: string
   GOOGLE_ROUTES_API_KEY: string
   QSTASH_URL: string
@@ -29,11 +30,12 @@ type Env = { Bindings: Bindings; Variables: ApiVariables }
 // ── Schemas ────────────────────────────────────────────────────────────────────
 
 export const OrderSchema = z.object({
-  id: z.number().int(),
-  account_id: z.number().int(),
+  id: z.string().uuid(),
+  account_id: z.string().uuid(),
   status: StatusEnum,
   data: z.any(),
-  destination_snapshot: z.any(),
+  location_snapshot: z.any(),
+  bento_order_snapshot: z.any(),
   vehicle_snapshot: z.any(),
   comment_for_account: z.string().nullable(),
   created_at: z.number().nullable(),
@@ -41,13 +43,13 @@ export const OrderSchema = z.object({
 }).openapi('Order')
 
 export const CreateOrderBody = z.object({
-  destination_ids: z.array(z.number().int()).min(2, '至少需要 2 個地點').openapi({
-    description: '地點 ID 陣列（至少 2 個）',
-    example: [1, 2, 3],
+  bento_order_ids: z.array(z.string().uuid()).min(1, '至少需要 1 筆便當訂單').openapi({
+    description: '便當訂單 UUID 陣列',
+    example: ['018f3a2b-0001-7abc-8def-000000000001'],
   }),
-  vehicle_ids: z.array(z.number().int()).min(1, '至少需要 1 輛車輛').openapi({
-    description: '車輛 ID 陣列（至少 1 輛）',
-    example: [1],
+  vehicle_ids: z.array(z.string().uuid()).min(1, '至少需要 1 輛車輛').openapi({
+    description: '車輛 UUID 陣列',
+    example: ['018f3a2b-0002-7abc-8def-000000000002'],
   }),
   data: z.any().optional(),
   comment_for_account: z.string().optional(),
@@ -89,7 +91,7 @@ const getOrderRoute = createRoute({
 })
 
 const createOrderRoute = createRoute({
-  method: 'post', path: '/', tags, summary: '建立訂單', security,
+  method: 'post', path: '/', tags, summary: '建立訂單（從便當訂單 + 車輛建立 VRP 計算任務組）', security,
   request: { body: { content: { 'application/json': { schema: CreateOrderBody } }, required: true } },
   responses: {
     201: { content: { 'application/json': { schema: OrderSchema } }, description: '建立成功' },
@@ -164,145 +166,165 @@ orderRoutes.openapi(createOrderRoute, async (c) => {
   const account_id = c.get('account_id')
   const body = c.req.valid('json')
 
-  const destination_ids: number[] = body.destination_ids
-  const vehicle_ids: number[] = body.vehicle_ids
+  // 1. 查出便當訂單
+  const bentoOrders = await db.select().from(bentoOrderTable)
+    .where(and(
+      inArray(bentoOrderTable.id, body.bento_order_ids),
+      eq(bentoOrderTable.account_id, account_id),
+      ne(bentoOrderTable.status, 'deleted'),
+    ))
+  if (bentoOrders.length !== body.bento_order_ids.length) {
+    throw new HTTPException(404, { message: '部分便當訂單不存在或無存取權限' })
+  }
 
-  // 查出地點（驗證所有權）
+  // 2. 查出品項
+  const items = await db.select().from(bentoOrderItemTable)
+    .where(inArray(bentoOrderItemTable.bento_order_id, body.bento_order_ids))
+
+  // 3. 收集不重複地點 ID
+  const locationIdSet = new Set<string>()
+  for (const bo of bentoOrders) {
+    locationIdSet.add(bo.pickup_location_id)
+    locationIdSet.add(bo.delivery_location_id)
+  }
+  const locationIds = Array.from(locationIdSet)
+
+  // 4. 查出地點
   const destinations = await db.select().from(destinationTable)
     .where(and(
-      inArray(destinationTable.id, destination_ids),
+      inArray(destinationTable.id, locationIds),
       eq(destinationTable.account_id, account_id),
       ne(destinationTable.status, 'deleted'),
     ))
-  if (destinations.length !== destination_ids.length) {
+  if (destinations.length !== locationIds.length) {
     throw new HTTPException(404, { message: '部分地點不存在或無存取權限' })
   }
 
-  // 查出車輛（帶 vehicle_type 取得 capacity）
+  // 5. 查出車輛（帶 capacity）
   const vehicles = await db.select({
     id: vehicleTable.id,
-    vehicle_number: vehicleTable.vehicle_number,
     capacity: vehicleTypeTable.capacity,
     data: vehicleTable.data,
   })
     .from(vehicleTable)
     .innerJoin(vehicleTypeTable, eq(vehicleTable.vehicle_type, vehicleTypeTable.id))
     .where(and(
-      inArray(vehicleTable.id, vehicle_ids),
+      inArray(vehicleTable.id, body.vehicle_ids),
       eq(vehicleTable.account_id, account_id),
       ne(vehicleTable.status, 'deleted'),
     ))
-  if (vehicles.length !== vehicle_ids.length) {
+  if (vehicles.length !== body.vehicle_ids.length) {
     throw new HTTPException(404, { message: '部分車輛不存在或無存取權限' })
   }
 
-  // 建立快照
-  const destination_snapshot = destinations.map((d) => ({
-    id: d.id,
+  // 6. 補齊兩點距離快取（Google Routes API）
+  const existing = await db
+    .select({ a_point: infoBetweenTable.a_point, b_point: infoBetweenTable.b_point })
+    .from(infoBetweenTable)
+    .where(and(
+      inArray(infoBetweenTable.a_point, locationIds),
+      inArray(infoBetweenTable.b_point, locationIds),
+    ))
+
+  const existingSet = new Set(existing.map(r => `${r.a_point}-${r.b_point}`))
+  const missingPairs = new Set<string>()
+  for (const a of destinations) {
+    for (const b of destinations) {
+      if (a.id !== b.id && !existingSet.has(`${a.id}-${b.id}`)) {
+        missingPairs.add(`${a.id}-${b.id}`)
+      }
+    }
+  }
+
+  if (missingPairs.size > 0) {
+    const waypoints = destinations.map(d => ({
+      waypoint: { location: { latLng: { latitude: parseFloat(d.lat), longitude: parseFloat(d.lng) } } },
+    }))
+
+    const response = await fetch(
+      'https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': c.env.GOOGLE_ROUTES_API_KEY,
+          'X-Goog-FieldMask': 'originIndex,destinationIndex,distanceMeters,duration,condition',
+        },
+        body: JSON.stringify({
+          origins: waypoints,
+          destinations: waypoints,
+          travelMode: 'DRIVE',
+          routingPreference: 'TRAFFIC_UNAWARE',
+        }),
+      }
+    )
+
+    if (!response.ok) {
+      throw new HTTPException(502, { message: `Google Routes API 發生錯誤：${response.status}` })
+    }
+
+    const entries = (await response.json()) as Array<{
+      originIndex: number; destinationIndex: number
+      distanceMeters: number; duration: string; condition: string
+    }>
+
+    const newRows: Array<{ a_point: string; b_point: string; distance_from_a_to_b: string; time_from_a_to_b: string }> = []
+    for (const entry of entries) {
+      if (entry.originIndex === entry.destinationIndex) continue
+      const key = `${locationIds[entry.originIndex]}-${locationIds[entry.destinationIndex]}`
+      if (!missingPairs.has(key)) continue
+      if (entry.condition !== 'ROUTE_EXISTS') {
+        throw new HTTPException(422, { message: `無法計算地點之間的路線（${locationIds[entry.originIndex]} → ${locationIds[entry.destinationIndex]}）` })
+      }
+      const durationSeconds = parseInt(entry.duration.replace('s', ''), 10)
+      newRows.push({
+        a_point: locationIds[entry.originIndex],
+        b_point: locationIds[entry.destinationIndex],
+        distance_from_a_to_b: String(entry.distanceMeters),
+        time_from_a_to_b: String(Math.round(durationSeconds / 60)),
+      })
+    }
+    if (newRows.length > 0) await db.insert(infoBetweenTable).values(newRows)
+  }
+
+  // 7. 建立快照
+  const location_snapshot = destinations.map((d, idx) => ({
+    idx,
+    db_id: d.id,
     name: d.name,
-    address: d.address,
-    lat: d.lat,
-    lng: d.lng,
-    is_depot: (d.data as any)?.is_depot ?? false,
-    pickup: (d.data as any)?.pickup ?? 0,
-    delivery: (d.data as any)?.delivery ?? 0,
-    service_time: (d.data as any)?.service_time ?? 0,
+    lat: parseFloat(d.lat),
+    lng: parseFloat(d.lng),
     time_window_start: (d.data as any)?.time_window_start ?? 0,
     time_window_end: (d.data as any)?.time_window_end ?? 1440,
+    service_time: (d.data as any)?.service_time ?? 0,
+    late_penalty: (d.data as any)?.late_penalty ?? null,
+  }))
+  const locIdxMap: Record<string, number> = Object.fromEntries(destinations.map((d, i) => [d.id, i]))
+
+  const itemsByOrder = new Map<string, Array<{ sku: string; quantity: number }>>()
+  for (const item of items) {
+    if (!itemsByOrder.has(item.bento_order_id)) itemsByOrder.set(item.bento_order_id, [])
+    itemsByOrder.get(item.bento_order_id)!.push({ sku: item.sku, quantity: item.quantity })
+  }
+  const bento_order_snapshot = bentoOrders.map(bo => ({
+    order_id: bo.id,
+    pickup_location_id: locIdxMap[bo.pickup_location_id],
+    delivery_location_id: locIdxMap[bo.delivery_location_id],
+    items: itemsByOrder.get(bo.id) ?? [],
+    unserved_penalty: bo.unserved_penalty ?? null,
   }))
 
-  const vehicle_snapshot = vehicles.map((v) => ({
-    id: v.id,
-    vehicle_number: v.vehicle_number,
+  const vehicle_snapshot = vehicles.map((v, idx) => ({
+    idx,
+    db_id: v.id,
     capacity: v.capacity,
     fixed_cost: (v.data as any)?.fixed_cost ?? 0,
   }))
 
-  // 補齊缺少的兩點距離快取
-  const destIds = destinations.map((d) => d.id)
-  if (destIds.length >= 2) {
-    const existing = await db
-      .select({ a_point: infoBetweenTable.a_point, b_point: infoBetweenTable.b_point })
-      .from(infoBetweenTable)
-      .where(and(inArray(infoBetweenTable.a_point, destIds), inArray(infoBetweenTable.b_point, destIds)))
-
-    const existingSet = new Set(existing.map((r) => `${r.a_point}-${r.b_point}`))
-    const missingPairs = new Set<string>()
-    for (const a of destinations) {
-      for (const b of destinations) {
-        if (a.id !== b.id && !existingSet.has(`${a.id}-${b.id}`)) {
-          missingPairs.add(`${a.id}-${b.id}`)
-        }
-      }
-    }
-
-    if (missingPairs.size > 0) {
-      const waypoints = destinations.map((d) => ({
-        waypoint: { location: { latLng: { latitude: parseFloat(d.lat), longitude: parseFloat(d.lng) } } },
-      }))
-
-      const response = await fetch(
-        'https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': c.env.GOOGLE_ROUTES_API_KEY,
-            'X-Goog-FieldMask': 'originIndex,destinationIndex,distanceMeters,duration,condition',
-          },
-          body: JSON.stringify({
-            origins: waypoints,
-            destinations: waypoints,
-            travelMode: 'DRIVE',
-            routingPreference: 'TRAFFIC_UNAWARE',
-          }),
-        }
-      )
-
-      if (!response.ok) {
-        throw new HTTPException(502, { message: `Google Routes API 發生錯誤：${response.status}` })
-      }
-
-      const entries = (await response.json()) as Array<{
-        originIndex: number
-        destinationIndex: number
-        distanceMeters: number
-        duration: string
-        condition: string
-      }>
-
-      const newRows: Array<{
-        a_point: number
-        b_point: number
-        distance_from_a_to_b: string
-        time_from_a_to_b: string
-      }> = []
-
-      for (const entry of entries) {
-        if (entry.originIndex === entry.destinationIndex) continue
-        const key = `${destIds[entry.originIndex]}-${destIds[entry.destinationIndex]}`
-        if (!missingPairs.has(key)) continue
-        if (entry.condition !== 'ROUTE_EXISTS') {
-          throw new HTTPException(422, { message: `無法計算地點之間的路線（${destIds[entry.originIndex]} → ${destIds[entry.destinationIndex]}）` })
-        }
-        const durationSeconds = parseInt(entry.duration.replace('s', ''), 10)
-        newRows.push({
-          a_point: destIds[entry.originIndex],
-          b_point: destIds[entry.destinationIndex],
-          distance_from_a_to_b: String(entry.distanceMeters),
-          time_from_a_to_b: String(Math.round(durationSeconds / 60)),
-        })
-      }
-
-      if (newRows.length > 0) {
-        await db.insert(infoBetweenTable).values(newRows)
-      }
-    }
-  }
-
   const [created] = await db.insert(orderTable).values({
     account_id,
-    destination_snapshot,
+    location_snapshot,
+    bento_order_snapshot,
     vehicle_snapshot,
     data: body.data,
     comment_for_account: body.comment_for_account,
@@ -360,7 +382,7 @@ orderRoutes.openapi(triggerComputeRoute, async (c) => {
     compute_status: 'pending',
     start_time: now,
     algo_parameter: {
-      endpoint: '/vrp/solve',
+      endpoint: '/vrp/bento/v1/solve',
       ...(body.time_limit_seconds != null && { time_limit_seconds: body.time_limit_seconds }),
     },
   }).returning()
@@ -370,20 +392,35 @@ orderRoutes.openapi(triggerComputeRoute, async (c) => {
       .set({ compute_status: 'failed', fail_reason: reason, updated_at: Math.floor(Date.now() / 1000) })
       .where(eq(computeTable.id, compute.id))
 
-  const destinations = order.destination_snapshot as any[]
-  const vehicles = order.vehicle_snapshot as any[]
-  const destIds = destinations.map((d: any) => d.id as number)
-  const n = destIds.length
+  const locationSnapshot = order.location_snapshot as Array<{
+    idx: number; db_id: string; lat: number; lng: number
+    time_window_start: number; time_window_end: number; service_time: number; late_penalty: number | null; name: string
+  }>
+  const bentoOrderSnapshot = order.bento_order_snapshot as Array<{
+    order_id: string; pickup_location_id: number; delivery_location_id: number
+    items: Array<{ sku: string; quantity: number }>; unserved_penalty: number | null
+  }>
+  const vehicleSnapshot = order.vehicle_snapshot as Array<{
+    idx: number; db_id: string; capacity: number; fixed_cost: number
+  }>
 
+  const locationDbIds = locationSnapshot.map(l => l.db_id)
+  const n = locationDbIds.length
+
+  // 查距離矩陣
   const pairs = await db.select().from(infoBetweenTable)
-    .where(and(inArray(infoBetweenTable.a_point, destIds), inArray(infoBetweenTable.b_point, destIds)))
+    .where(and(
+      inArray(infoBetweenTable.a_point, locationDbIds),
+      inArray(infoBetweenTable.b_point, locationDbIds),
+    ))
 
   if (pairs.length < n * (n - 1)) {
-    await markFailed(`距離矩陣資料不完整，需要 ${n * (n - 1)} 筆，實際只有 ${pairs.length} 筆`)
+    await markFailed(`距離矩陣不完整，需要 ${n * (n - 1)} 筆，實際 ${pairs.length} 筆`)
     return c.json(compute, 202)
   }
 
-  const idxMap: Record<number, number> = Object.fromEntries(destIds.map((id, i) => [id, i]))
+  // 組 N×N 矩陣（使用 snapshot 的 idx 作為索引）
+  const idxMap: Record<string, number> = Object.fromEntries(locationSnapshot.map(l => [l.db_id, l.idx]))
   const distMatrix = Array.from({ length: n }, () => Array<number>(n).fill(0))
   const timeMatrix = Array.from({ length: n }, () => Array<number>(n).fill(0))
   for (const p of pairs) {
@@ -391,39 +428,41 @@ orderRoutes.openapi(triggerComputeRoute, async (c) => {
     timeMatrix[idxMap[p.a_point]][idxMap[p.b_point]] = Number(p.time_from_a_to_b)
   }
 
-  const depotIndex = Math.max(0, destinations.findIndex((d: any) => d.is_depot))
+  // depot：找 is_depot 或用 idx=0
+  const depotLocationId = locationSnapshot.find(l => (l as any).is_depot)?.idx ?? 0
 
   const vrpPayload = {
     compute_id: compute.id,
-    locations: destinations.map((d: any) => ({
-      id: d.id,
-      name: d.name ?? '',
-      lat: parseFloat(d.lat),
-      lng: parseFloat(d.lng),
-      pickup: d.pickup ?? 0,
-      delivery: d.delivery ?? 0,
-      service_time: d.service_time ?? 0,
-      tw_start: d.time_window_start ?? 0,
-      tw_end: d.time_window_end ?? 1440,
-      ...(d.unserved_penalty != null && { unserved_penalty: d.unserved_penalty }),
-      ...(d.late_penalty != null && { late_penalty: d.late_penalty }),
-      ...(d.allowed_vehicle_ids?.length && { allowed_vehicle_ids: d.allowed_vehicle_ids }),
+    depot_location_id: depotLocationId,
+    locations: locationSnapshot.map(l => ({
+      location_id: l.idx,
+      name: l.name,
+      lat: l.lat,
+      lng: l.lng,
+      time_window_start: l.time_window_start,
+      time_window_end: l.time_window_end,
+      service_time: l.service_time,
+      ...(l.late_penalty != null && { late_penalty: l.late_penalty }),
     })),
-    vehicles: vehicles.map((v: any) => ({
-      id: v.id,
-      capacity: v.capacity ?? 0,
-      fixed_cost: v.fixed_cost ?? 0,
-      start_location_index: v.start_location_index ?? depotIndex,
-      ...(v.max_duration_minutes != null && { max_duration_minutes: v.max_duration_minutes }),
+    vehicles: vehicleSnapshot.map(v => ({
+      vehicle_id: v.idx,
+      capacity: v.capacity,
+      fixed_cost: v.fixed_cost,
+    })),
+    orders: bentoOrderSnapshot.map(bo => ({
+      order_id: bo.order_id,
+      pickup_location_id: bo.pickup_location_id,
+      delivery_location_id: bo.delivery_location_id,
+      items: bo.items,
+      ...(bo.unserved_penalty != null && { unserved_penalty: bo.unserved_penalty }),
     })),
     distance_matrix: distMatrix,
     time_matrix: timeMatrix,
     ...(body.time_limit_seconds != null && { time_limit_seconds: body.time_limit_seconds }),
   }
 
-  // 發佈到 QStash，由 QStash 呼叫 Rust VRP API 並回呼 /internal/vrp-callback
-  const rustApiUrl = `${c.env.vrp_api_python}/vrp/solve`
-  const qstashPublishUrl = `${c.env.QSTASH_URL}/v2/publish/${rustApiUrl}`
+  const vrpUrl = `${c.env.vrp_api_python}/vrp/bento/v1/solve`
+  const qstashPublishUrl = `${c.env.QSTASH_URL}/v2/publish/${vrpUrl}`
 
   try {
     const res = await fetch(qstashPublishUrl, {
@@ -457,12 +496,11 @@ orderRoutes.openapi(listOrderComputesRoute, async (c) => {
     .limit(1)
   if (!order) throw new HTTPException(404, { message: '找不到資源' })
 
-  const items = await db.select(getTableColumns(computeTable))
-    .from(computeTable)
+  const items = await db.select().from(computeTable)
     .innerJoin(computeOneClickTable, eq(computeTable.compute_one_click_id, computeOneClickTable.id))
     .where(and(
       eq(computeOneClickTable.order_id, order_id),
       eq(computeOneClickTable.account_id, account_id),
     ))
-  return c.json(items, 200)
+  return c.json(items.map(r => r.compute), 200)
 })

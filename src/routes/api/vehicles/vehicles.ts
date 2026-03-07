@@ -12,12 +12,12 @@ type Env = { Bindings: Bindings; Variables: ApiVariables }
 // ── Schemas ────────────────────────────────────────────────────────────────────
 
 export const VehicleSchema = z.object({
-  id: z.number().int(),
-  account_id: z.number().int(),
+  id: z.string().uuid(),
+  account_id: z.string().uuid(),
   status: StatusEnum,
   vehicle_number: z.string(),
-  vehicle_type: z.number().int(),
-  depot_id: z.number().int().nullable(),
+  vehicle_type: z.string().uuid(),
+  depot_id: z.string().uuid().nullable(),
   data: z.any(),
   comment_for_account: z.string().nullable(),
   created_at: z.number().nullable(),
@@ -26,16 +26,16 @@ export const VehicleSchema = z.object({
 
 export const CreateVehicleBody = z.object({
   vehicle_number: z.string().openapi({ example: 'ABC-1234' }),
-  vehicle_type: z.number().int().openapi({ example: 1, description: '車輛類型 ID' }),
-  depot_id: z.number().int().optional().openapi({ description: '預設出發地點 ID' }),
+  vehicle_type: z.string().uuid().openapi({ description: '車輛類型 UUID' }),
+  depot_id: z.string().uuid().optional().openapi({ description: '預設出發地點 UUID' }),
   data: z.any().optional(),
   comment_for_account: z.string().optional(),
 }).openapi('CreateVehicleBody')
 
 export const UpdateVehicleBody = z.object({
   vehicle_number: z.string().optional(),
-  vehicle_type: z.number().int().optional(),
-  depot_id: z.number().int().nullable().optional(),
+  vehicle_type: z.string().uuid().optional(),
+  depot_id: z.string().uuid().nullable().optional(),
   data: z.any().optional(),
   comment_for_account: z.string().optional(),
 }).openapi('UpdateVehicleBody')

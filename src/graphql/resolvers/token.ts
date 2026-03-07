@@ -5,7 +5,7 @@ import { requireAuth, type Context } from '../context'
 export const tokenTypeDefs = /* GraphQL */ `
   type ApiToken {
     id:         ID!
-    account_id: Int!
+    account_id: ID!
     status:     Status!
     token:      String!
     created_at: Float
@@ -39,7 +39,7 @@ export const tokenResolvers = {
       requireAuth(user)
       const [found] = await db.select().from(tokenTable)
         .where(and(
-          eq(tokenTable.id, parseInt(args.id)),
+          eq(tokenTable.id, args.id),
           eq(tokenTable.account_id, user!.account_id),
           ne(tokenTable.status, 'deleted'),
         ))
@@ -76,10 +76,9 @@ export const tokenResolvers = {
       { db, user }: Context
     ) => {
       requireAuth(user, 'manager')
-      const targetAccountId = parseInt(args.account_id)
       const tokenValue = 'sk-' + crypto.randomUUID().replace(/-/g, '')
       const [created] = await db.insert(tokenTable).values({
-        account_id: targetAccountId,
+        account_id: args.account_id,
         token: tokenValue,
         dead_at: args.dead_at,
         data: args.data,
@@ -99,7 +98,7 @@ export const tokenResolvers = {
       const [updated] = await db.update(tokenTable)
         .set({ status: 'inactive', updated_at: now })
         .where(and(
-          eq(tokenTable.id, parseInt(args.id)),
+          eq(tokenTable.id, args.id),
           eq(tokenTable.account_id, user!.account_id),
         ))
         .returning()
@@ -119,7 +118,7 @@ export const tokenResolvers = {
       const [updated] = await db.update(tokenTable)
         .set({ status: 'deleted', updated_at: now })
         .where(and(
-          eq(tokenTable.id, parseInt(args.id)),
+          eq(tokenTable.id, args.id),
           eq(tokenTable.account_id, user!.account_id),
         ))
         .returning()

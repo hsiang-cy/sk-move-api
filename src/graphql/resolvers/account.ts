@@ -29,7 +29,7 @@ export const accountTypeDefs = /* GraphQL */ `
 
   type PointLog {
     id:         ID!
-    account_id: Int!
+    account_id: ID!
     change:     Int!
     reason:     String!
     data:       JSON
@@ -104,7 +104,7 @@ export const accountResolvers = {
     }
   },
   Account: {
-    point_logs: (parent: { account_id: number }, _: any, { db }: Context) =>
+    point_logs: (parent: { account_id: string }, _: any, { db }: Context) =>
       db.select().from(point_log).where(eq(point_log.account_id, parent.account_id))
   }
 }

@@ -12,8 +12,8 @@ type Env = { Bindings: Bindings; Variables: ApiVariables }
 // ── Schemas ────────────────────────────────────────────────────────────────────
 
 export const VehicleTypeSchema = z.object({
-  id: z.number().int(),
-  account_id: z.number().int(),
+  id: z.string().uuid(),
+  account_id: z.string().uuid(),
   status: StatusEnum,
   name: z.string(),
   capacity: z.number().int(),

@@ -11,13 +11,12 @@ export const OkSchema = z.object({
 }).openapi('Ok')
 
 export const IdParam = z.object({
-  id: z.coerce.number().int().positive().openapi({ description: '資源 ID', example: 1 }),
+  id: z.string().uuid().openapi({ description: '資源 UUID', example: '018f3a2b-1234-7abc-8def-000000000001' }),
 })
 
 export const StatusEnum = z.enum(['inactive', 'active', 'deleted'])
 export const ComputeStatusEnum = z.enum(['initial', 'pending', 'computing', 'completed', 'failed', 'cancelled'])
 
-// 統一的 validation 錯誤 hook，第一則 Zod 訊息做為 error 回傳
 export const validationHook = (result: any, c: any): any => {
   if (!result.success) {
     const message: string = result.error?.errors?.[0]?.message

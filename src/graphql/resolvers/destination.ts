@@ -5,7 +5,7 @@ import { requireAuth, type Context } from '../context'
 export const destinationTypeDefs = /* GraphQL */ `
   type Destination {
     id:                  ID!
-    account_id:          Int!
+    account_id:          ID!
     status:              Status!
     name:                String!
     address:             String!
@@ -43,7 +43,7 @@ export const destinationResolvers = {
         .select()
         .from(destinationTable)
         .where(and(
-          eq(destinationTable.id, parseInt(args.id)),
+          eq(destinationTable.id, args.id),
           eq(destinationTable.account_id, user!.account_id)
         ))
         .limit(1)
@@ -82,7 +82,7 @@ export const destinationResolvers = {
         .update(destinationTable)
         .set(updates)
         .where(and(
-          eq(destinationTable.id, parseInt(args.id)),
+          eq(destinationTable.id, args.id),
           eq(destinationTable.account_id, user!.account_id)
         ))
         .returning()
@@ -95,7 +95,7 @@ export const destinationResolvers = {
         .update(destinationTable)
         .set({ status: 'deleted', updated_at: Math.floor(Date.now() / 1000) })
         .where(and(
-          eq(destinationTable.id, parseInt(args.id)),
+          eq(destinationTable.id, args.id),
           eq(destinationTable.account_id, user!.account_id)
         ))
         .returning()
