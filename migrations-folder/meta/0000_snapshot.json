@@ -1,5 +1,5 @@
 {
-  "id": "704b42be-177d-40b1-99e5-c35e44b5e520",
+  "id": "468b1add-6ff9-496f-9b73-33a5960a1a57",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -8,9 +8,9 @@
       "name": "account",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
           "primaryKey": true,
           "notNull": true
         },
@@ -120,21 +120,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "account_account_gin": {
-          "name": "account_account_gin",
-          "columns": [
-            {
-              "expression": "to_tsvector('english', \"account\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
         }
       },
       "foreignKeys": {},
@@ -159,25 +144,219 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.compute": {
-      "name": "compute",
+    "public.bento_order": {
+      "name": "bento_order",
       "schema": "",
       "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
         "account_id": {
           "name": "account_id",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
+        "status": {
+          "name": "status",
+          "type": "status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "pickup_location_id": {
+          "name": "pickup_location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "delivery_location_id": {
+          "name": "delivery_location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unserved_penalty": {
+          "name": "unserved_penalty",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comment_for_account": {
+          "name": "comment_for_account",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "data": {
+          "name": "data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "EXTRACT(EPOCH FROM NOW())::bigint"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "bento_order_account_id_index": {
+          "name": "bento_order_account_id_index",
+          "columns": [
+            {
+              "expression": "account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "bento_order_account_id_account_account_id_fk": {
+          "name": "bento_order_account_id_account_account_id_fk",
+          "tableFrom": "bento_order",
+          "tableTo": "account",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "account_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "bento_order_pickup_location_id_destination_id_fk": {
+          "name": "bento_order_pickup_location_id_destination_id_fk",
+          "tableFrom": "bento_order",
+          "tableTo": "destination",
+          "columnsFrom": [
+            "pickup_location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "bento_order_delivery_location_id_destination_id_fk": {
+          "name": "bento_order_delivery_location_id_destination_id_fk",
+          "tableFrom": "bento_order",
+          "tableTo": "destination",
+          "columnsFrom": [
+            "delivery_location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.bento_order_item": {
+      "name": "bento_order_item",
+      "schema": "",
+      "columns": {
         "id": {
           "name": "id",
           "type": "serial",
           "primaryKey": true,
           "notNull": true
         },
-        "order_id": {
-          "name": "order_id",
+        "bento_order_id": {
+          "name": "bento_order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sku": {
+          "name": "sku",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "bento_order_item_bento_order_id_index": {
+          "name": "bento_order_item_bento_order_id_index",
+          "columns": [
+            {
+              "expression": "bento_order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "bento_order_item_bento_order_id_bento_order_id_fk": {
+          "name": "bento_order_item_bento_order_id_bento_order_id_fk",
+          "tableFrom": "bento_order_item",
+          "tableTo": "bento_order",
+          "columnsFrom": [
+            "bento_order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.compute": {
+      "name": "compute",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "compute_one_click_id": {
+          "name": "compute_one_click_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -215,9 +394,27 @@
           "primaryKey": false,
           "notNull": false
         },
+        "algo_parameter": {
+          "name": "algo_parameter",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "data": {
           "name": "data",
           "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comment_for_account": {
+          "name": "comment_for_account",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comment_for_dev": {
+          "name": "comment_for_dev",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -233,17 +430,111 @@
           "type": "bigint",
           "primaryKey": false,
           "notNull": false
+        }
+      },
+      "indexes": {
+        "compute_compute_one_click_id_index": {
+          "name": "compute_compute_one_click_id_index",
+          "columns": [
+            {
+              "expression": "compute_one_click_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "compute_compute_one_click_id_compute_one_click_id_fk": {
+          "name": "compute_compute_one_click_id_compute_one_click_id_fk",
+          "tableFrom": "compute",
+          "tableTo": "compute_one_click",
+          "columnsFrom": [
+            "compute_one_click_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.compute_one_click": {
+      "name": "compute_one_click",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "order_id": {
+          "name": "order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "start_time": {
+          "name": "start_time",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "data": {
+          "name": "data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         },
         "comment_for_account": {
           "name": "comment_for_account",
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "EXTRACT(EPOCH FROM NOW())::bigint"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
-        "compute_account_id_index": {
-          "name": "compute_account_id_index",
+        "compute_one_click_account_id_index": {
+          "name": "compute_one_click_account_id_index",
           "columns": [
             {
               "expression": "account_id",
@@ -257,8 +548,8 @@
           "method": "btree",
           "with": {}
         },
-        "compute_order_id_index": {
-          "name": "compute_order_id_index",
+        "compute_one_click_order_id_index": {
+          "name": "compute_one_click_order_id_index",
           "columns": [
             {
               "expression": "order_id",
@@ -274,22 +565,22 @@
         }
       },
       "foreignKeys": {
-        "compute_account_id_account_id_fk": {
-          "name": "compute_account_id_account_id_fk",
-          "tableFrom": "compute",
+        "compute_one_click_account_id_account_account_id_fk": {
+          "name": "compute_one_click_account_id_account_account_id_fk",
+          "tableFrom": "compute_one_click",
           "tableTo": "account",
           "columnsFrom": [
             "account_id"
           ],
           "columnsTo": [
-            "id"
+            "account_id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "compute_order_id_order_id_fk": {
-          "name": "compute_order_id_order_id_fk",
-          "tableFrom": "compute",
+        "compute_one_click_order_id_order_id_fk": {
+          "name": "compute_one_click_order_id_order_id_fk",
+          "tableFrom": "compute_one_click",
           "tableTo": "order",
           "columnsFrom": [
             "order_id"
@@ -313,13 +604,13 @@
       "columns": {
         "account_id": {
           "name": "account_id",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
         "id": {
           "name": "id",
-          "type": "serial",
+          "type": "uuid",
           "primaryKey": true,
           "notNull": true
         },
@@ -372,15 +663,15 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "custom_vehicle_type_account_id_account_id_fk": {
-          "name": "custom_vehicle_type_account_id_account_id_fk",
+        "custom_vehicle_type_account_id_account_account_id_fk": {
+          "name": "custom_vehicle_type_account_id_account_account_id_fk",
           "tableFrom": "custom_vehicle_type",
           "tableTo": "account",
           "columnsFrom": [
             "account_id"
           ],
           "columnsTo": [
-            "id"
+            "account_id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -398,13 +689,13 @@
       "columns": {
         "account_id": {
           "name": "account_id",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
         "id": {
           "name": "id",
-          "type": "serial",
+          "type": "uuid",
           "primaryKey": true,
           "notNull": true
         },
@@ -514,15 +805,15 @@
         }
       },
       "foreignKeys": {
-        "destination_account_id_account_id_fk": {
-          "name": "destination_account_id_account_id_fk",
+        "destination_account_id_account_account_id_fk": {
+          "name": "destination_account_id_account_account_id_fk",
           "tableFrom": "destination",
           "tableTo": "account",
           "columnsFrom": [
             "account_id"
           ],
           "columnsTo": [
-            "id"
+            "account_id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -546,27 +837,39 @@
         },
         "a_point": {
           "name": "a_point",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
         "b_point": {
           "name": "b_point",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
         "distance_from_a_b": {
           "name": "distance_from_a_b",
-          "type": "integer",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
         "time_from_a_b": {
           "name": "time_from_a_b",
-          "type": "integer",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "distance_from_a_b_dynamic": {
+          "name": "distance_from_a_b_dynamic",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time_from_a_b_dynamic": {
+          "name": "time_from_a_b_dynamic",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "polyline_from_map_service": {
           "name": "polyline_from_map_service",
@@ -628,13 +931,13 @@
       "columns": {
         "account_id": {
           "name": "account_id",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
         "id": {
           "name": "id",
-          "type": "serial",
+          "type": "uuid",
           "primaryKey": true,
           "notNull": true
         },
@@ -665,8 +968,14 @@
           "primaryKey": false,
           "notNull": false
         },
-        "destination_snapshot": {
-          "name": "destination_snapshot",
+        "location_snapshot": {
+          "name": "location_snapshot",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bento_order_snapshot": {
+          "name": "bento_order_snapshot",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true
@@ -702,15 +1011,15 @@
         }
       },
       "foreignKeys": {
-        "order_account_id_account_id_fk": {
-          "name": "order_account_id_account_id_fk",
+        "order_account_id_account_account_id_fk": {
+          "name": "order_account_id_account_account_id_fk",
           "tableFrom": "order",
           "tableTo": "account",
           "columnsFrom": [
             "account_id"
           ],
           "columnsTo": [
-            "id"
+            "account_id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -734,7 +1043,7 @@
         },
         "account_id": {
           "name": "account_id",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -782,15 +1091,15 @@
         }
       },
       "foreignKeys": {
-        "point_log_account_id_account_id_fk": {
-          "name": "point_log_account_id_account_id_fk",
+        "point_log_account_id_account_account_id_fk": {
+          "name": "point_log_account_id_account_account_id_fk",
           "tableFrom": "point_log",
           "tableTo": "account",
           "columnsFrom": [
             "account_id"
           ],
           "columnsTo": [
-            "id"
+            "account_id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -808,19 +1117,19 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "serial",
+          "type": "uuid",
           "primaryKey": true,
           "notNull": true
         },
         "compute_id": {
           "name": "compute_id",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
         "vehicle_id": {
           "name": "vehicle_id",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -937,13 +1246,13 @@
         },
         "route_id": {
           "name": "route_id",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
         "destination_id": {
           "name": "destination_id",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -960,12 +1269,18 @@
           "notNull": true,
           "default": 0
         },
-        "demand": {
-          "name": "demand",
-          "type": "integer",
+        "action": {
+          "name": "action",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": 0
+          "default": "'delivery'"
+        },
+        "bento_order_ids": {
+          "name": "bento_order_ids",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -1035,19 +1350,157 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.token": {
+      "name": "token",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "EXTRACT(EPOCH FROM NOW())::bigint"
+        },
+        "dead_at": {
+          "name": "dead_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "data": {
+          "name": "data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "token_account_id_account_account_id_fk": {
+          "name": "token_account_id_account_account_id_fk",
+          "tableFrom": "token",
+          "tableTo": "account",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "account_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "token_text_unique": {
+          "name": "token_text_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "text"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.token_action_log": {
+      "name": "token_action_log",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "token_id": {
+          "name": "token_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "EXTRACT(EPOCH FROM NOW())::bigint"
+        },
+        "data": {
+          "name": "data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "token_action_log_token_id_token_id_fk": {
+          "name": "token_action_log_token_id_token_id_fk",
+          "tableFrom": "token_action_log",
+          "tableTo": "token",
+          "columnsFrom": [
+            "token_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.vehicle": {
       "name": "vehicle",
       "schema": "",
       "columns": {
         "account_id": {
           "name": "account_id",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
         "id": {
           "name": "id",
-          "type": "serial",
+          "type": "uuid",
           "primaryKey": true,
           "notNull": true
         },
@@ -1067,13 +1520,13 @@
         },
         "vehicle_type": {
           "name": "vehicle_type",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
         "depot_id": {
           "name": "depot_id",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -1121,15 +1574,15 @@
         }
       },
       "foreignKeys": {
-        "vehicle_account_id_account_id_fk": {
-          "name": "vehicle_account_id_account_id_fk",
+        "vehicle_account_id_account_account_id_fk": {
+          "name": "vehicle_account_id_account_account_id_fk",
           "tableFrom": "vehicle",
           "tableTo": "account",
           "columnsFrom": [
             "account_id"
           ],
           "columnsTo": [
-            "id"
+            "account_id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"

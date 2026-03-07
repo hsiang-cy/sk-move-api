@@ -26,8 +26,7 @@ export const computeStatus = pgEnum('compute_status',
     ]);
 export const accountRoleEnum = pgEnum('account_role', ['admin', 'manager', 'normal', 'guest', 'just_view']);
 
-// ── 使用者 ────────────────────────────────────────────────────────────────────
-
+// 使用者
 export const account = pgTable('account', {
     account_id: uuid('account_id').primaryKey().$defaultFn(uuidv7),
     status: statusEnum('status').notNull().default('active'),
@@ -56,8 +55,7 @@ export const account = pgTable('account', {
     index().on(table.account),
 ]))
 
-// ── 點數紀錄（內部稽核，serial PK）───────────────────────────────────────────
-
+// 點數紀錄
 export const point_log = pgTable('point_log', {
     id: serial('id').primaryKey(),
     account_id: uuid('account_id').notNull().references(() => account.account_id, { onDelete: 'cascade' }),
@@ -77,8 +75,7 @@ export const point_log = pgTable('point_log', {
     index().on(table.account_id),
 ]))
 
-// ── API Token ─────────────────────────────────────────────────────────────────
-
+// api 版本的 token
 export const token = pgTable('token', {
     id: uuid('id').primaryKey().$defaultFn(uuidv7),
     account_id: uuid('account_id').notNull().references(() => account.account_id, { onDelete: 'cascade' }),
@@ -97,8 +94,7 @@ export const token = pgTable('token', {
     */
 })
 
-// ── Token 操作紀錄（內部稽核，serial PK）──────────────────────────────────────
-
+// token 操作紀錄
 export const token_action_log = pgTable('token_action_log', {
     id: serial('id').primaryKey(),
     token_id: uuid('token_id').notNull().references(() => token.id, { onDelete: 'cascade' }),
@@ -112,8 +108,7 @@ export const token_action_log = pgTable('token_action_log', {
     */
 })
 
-// ── 地點 ──────────────────────────────────────────────────────────────────────
-
+// 地點
 export const destination = pgTable('destination', {
     account_id: uuid('account_id').notNull().references(() => account.account_id, { onDelete: 'cascade' }),
     id: uuid('id').primaryKey().$defaultFn(uuidv7),
@@ -145,8 +140,7 @@ export const destination = pgTable('destination', {
     index().on(table.address),
 ]))
 
-// ── 使用者自訂的車輛類型 ───────────────────────────────────────────────────────
-
+// 使用者自訂的車輛類型
 export const custom_vehicle_type = pgTable('custom_vehicle_type', {
     account_id: uuid('account_id').notNull().references(() => account.account_id, { onDelete: 'cascade' }),
     id: uuid('id').primaryKey().$defaultFn(uuidv7),
@@ -166,8 +160,7 @@ export const custom_vehicle_type = pgTable('custom_vehicle_type', {
     comment_for_account: text('comment_for_account'),
 })
 
-// ── 車輛 ──────────────────────────────────────────────────────────────────────
-
+// 車輛
 export const vehicle = pgTable('vehicle', {
     account_id: uuid('account_id').notNull().references(() => account.account_id, { onDelete: 'cascade' }),
     id: uuid('id').primaryKey().$defaultFn(uuidv7),
@@ -193,8 +186,7 @@ export const vehicle = pgTable('vehicle', {
     index().on(table.account_id),
 ]));
 
-// ── 便當訂單（業務訂單，取送配對）────────────────────────────────────────────
-
+// 便當訂單（取送配對）
 export const bento_order = pgTable('bento_order', {
     id: uuid('id').primaryKey().$defaultFn(uuidv7),
     account_id: uuid('account_id').notNull().references(() => account.account_id, { onDelete: 'cascade' }),
@@ -219,8 +211,7 @@ export const bento_order = pgTable('bento_order', {
     index().on(table.account_id),
 ]))
 
-// ── 便當訂單品項（serial PK，不對外暴露）──────────────────────────────────────
-
+// 便當訂單品項
 export const bento_order_item = pgTable('bento_order_item', {
     id: serial('id').primaryKey(),
     bento_order_id: uuid('bento_order_id').notNull().references(() => bento_order.id, { onDelete: 'cascade' }),
@@ -230,8 +221,7 @@ export const bento_order_item = pgTable('bento_order_item', {
     index().on(table.bento_order_id),
 ]))
 
-// ── VRP 計算任務組（對應「使用者選一批訂單送出計算」）───────────────────────────
-
+// 一筆訂單(一筆訂單可以多次計算)
 export const order = pgTable('order', {
     account_id: uuid('account_id').notNull().references(() => account.account_id, { onDelete: 'cascade' }),
     id: uuid('id').primaryKey().$defaultFn(uuidv7),
@@ -299,8 +289,7 @@ export const order = pgTable('order', {
     index().on(table.account_id),
 ]));
 
-// ── 一次點擊觸發計算（compute_one_click）──────────────────────────────────────
-
+// 一次計算任務(用戶按下一次計算)
 export const compute_one_click = pgTable('compute_one_click', {
     id: uuid('id').primaryKey().$defaultFn(uuidv7),
     account_id: uuid('account_id').notNull().references(() => account.account_id, { onDelete: 'cascade' }),
@@ -324,8 +313,7 @@ export const compute_one_click = pgTable('compute_one_click', {
     index().on(table.order_id),
 ]));
 
-// ── 單次實際運算（compute）────────────────────────────────────────────────────
-
+// 一次計算點擊所觸發多次計算（不同演算法、策略、參數）
 export const compute = pgTable('compute', {
     id: uuid('id').primaryKey().$defaultFn(uuidv7),
     compute_one_click_id: uuid('compute_one_click_id').notNull().references(() => compute_one_click.id, { onDelete: 'cascade' }),
@@ -360,8 +348,7 @@ export const compute = pgTable('compute', {
     index().on(table.compute_one_click_id),
 ]));
 
-// ── 計算結果：路線（一輛車一條路線）──────────────────────────────────────────
-
+// 計算完成後，一條路線（對應一輛車）
 export const route = pgTable('route', {
     id: uuid('id').primaryKey().$defaultFn(uuidv7),
     compute_id: uuid('compute_id').notNull().references(() => compute.id, { onDelete: 'cascade' }),
@@ -378,8 +365,7 @@ export const route = pgTable('route', {
     index().on(table.vehicle_id),
 ]))
 
-// ── 計算結果：路線中的每一站（serial PK）──────────────────────────────────────
-
+// 計算完成後，路線中的每一站
 export const route_stop = pgTable('route_stop', {
     id: serial('id').primaryKey(),
     route_id: uuid('route_id').notNull().references(() => route.id, { onDelete: 'cascade' }),
@@ -402,8 +388,7 @@ export const route_stop = pgTable('route_stop', {
     unique().on(table.route_id, table.sequence),
 ]))
 
-// ── 兩點距離快取（serial PK，純內部）─────────────────────────────────────────
-
+// 兩點距離快取
 export const info_between_two_point = pgTable('point_distance', {
     id: serial('id').primaryKey(),
 
