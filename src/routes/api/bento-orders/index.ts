@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { HTTPException } from 'hono/http-exception'
 import { and, eq, inArray, ne } from 'drizzle-orm'
-import { createDb } from '../../../db/connect'
+import { createDb } from '#/db/connect'
 import {
   bento_order as bentoOrderTable,
   bento_order_item as bentoOrderItemTable,

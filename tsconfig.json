@@ -15,7 +15,8 @@
     "noEmit": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
-    "types": ["@cloudflare/workers-types"]
+    "types": ["@cloudflare/workers-types"],
+    "paths": {"#/*": ["./src/*"]}
   },
   "include": ["src/**/*"]
 }

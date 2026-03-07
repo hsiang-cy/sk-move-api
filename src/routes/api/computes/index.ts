@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { HTTPException } from 'hono/http-exception'
 import { and, asc, eq, getTableColumns } from 'drizzle-orm'
-import { createDb } from '../../../db/connect'
+import { createDb } from '#/db/connect'
 import {
   compute as computeTable,
   compute_one_click as computeOneClickTable,

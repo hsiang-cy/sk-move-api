@@ -1,7 +1,7 @@
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { HTTPException } from 'hono/http-exception'
 import { and, eq, inArray, ne } from 'drizzle-orm'
-import { createDb } from '../../../db/connect'
+import { createDb } from '#/db/connect'
 import {
   order as orderTable,
   compute as computeTable,

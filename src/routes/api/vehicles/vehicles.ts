@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { HTTPException } from 'hono/http-exception'
 import { and, eq, ne } from 'drizzle-orm'
-import { createDb } from '../../../db/connect'
+import { createDb } from '#/db/connect'
 import { vehicle as vehicleTable } from '../../../db/schema'
 import type { ApiVariables } from '../middleware'
 import { ErrorSchema, OkSchema, IdParam, StatusEnum, validationHook } from '../schemas'
