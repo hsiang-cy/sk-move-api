@@ -8,6 +8,20 @@
       "when": 1772859694949,
       "tag": "0000_legal_tigra",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772864843799,
+      "tag": "0001_gray_echo",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772864850569,
+      "tag": "0002_aberrant_scarlet_spider",
+      "breakpoints": true
     }
   ]
 }

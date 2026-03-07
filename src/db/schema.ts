@@ -77,7 +77,7 @@ export const point_log = pgTable('point_log', {
 
 // api 版本的 token
 export const token = pgTable('token', {
-    id: uuid('id').primaryKey().$defaultFn(uuidv7),
+    id: serial('id').primaryKey(),
     account_id: uuid('account_id').notNull().references(() => account.account_id, { onDelete: 'cascade' }),
     status: statusEnum('status').notNull().default('active'),
 
@@ -97,7 +97,7 @@ export const token = pgTable('token', {
 // token 操作紀錄
 export const token_action_log = pgTable('token_action_log', {
     id: serial('id').primaryKey(),
-    token_id: uuid('token_id').notNull().references(() => token.id, { onDelete: 'cascade' }),
+    token_id: integer('token_id').notNull().references(() => token.id, { onDelete: 'cascade' }),
 
     date: bigint('date', { mode: 'number' }).default(sql`EXTRACT(EPOCH FROM NOW())::bigint`),
     data: jsonb('data'),
@@ -313,7 +313,7 @@ export const compute_one_click = pgTable('compute_one_click', {
     index().on(table.order_id),
 ]));
 
-// 一次計算點擊所觸發多次計算（不同演算法、策略、參數）
+// 一次計算點擊可能發的多次計算（不同演算法、策略、參數）
 export const compute = pgTable('compute', {
     id: uuid('id').primaryKey().$defaultFn(uuidv7),
     compute_one_click_id: uuid('compute_one_click_id').notNull().references(() => compute_one_click.id, { onDelete: 'cascade' }),
