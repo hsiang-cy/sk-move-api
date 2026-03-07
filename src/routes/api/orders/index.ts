@@ -12,6 +12,8 @@ import {
   vehicle as vehicleTable,
   custom_vehicle_type as vehicleTypeTable,
   info_between_two_point as infoBetweenTable,
+  route as routeTable,
+  route_stop as routeStopTable,
 } from '../../../db/schema'
 import type { ApiVariables } from '../middleware'
 import { ErrorSchema, OkSchema, IdParam, StatusEnum, validationHook } from '../schemas'
@@ -267,6 +269,7 @@ orderRoutes.openapi(createOrderRoute, async (c) => {
       )
 
       if (!response.ok) {
+        console.log(`Google Routes API 發生錯誤：${response.status}`);
         throw new HTTPException(502, { message: '第三方服務錯誤' })
       }
 
@@ -287,7 +290,7 @@ orderRoutes.openapi(createOrderRoute, async (c) => {
         newRows.push({
           a_point: destinations[actualOriginIdx].id,
           b_point: destinations[entry.destinationIndex].id,
-          distance_from_a_to_b: String(entry.distanceMeters),
+          distance_from_a_to_b: String(entry.distanceMeters ?? 0),
           time_from_a_to_b: String(Math.round(durationSeconds / 60)),
         })
       }
@@ -433,8 +436,8 @@ orderRoutes.openapi(triggerComputeRoute, async (c) => {
   const distMatrix = Array.from({ length: n }, () => Array<number>(n).fill(0))
   const timeMatrix = Array.from({ length: n }, () => Array<number>(n).fill(0))
   for (const p of pairs) {
-    distMatrix[idxMap[p.a_point]][idxMap[p.b_point]] = Number(p.distance_from_a_to_b)
-    timeMatrix[idxMap[p.a_point]][idxMap[p.b_point]] = Number(p.time_from_a_to_b)
+    distMatrix[idxMap[p.a_point]][idxMap[p.b_point]] = Number(p.distance_from_a_to_b) || 0
+    timeMatrix[idxMap[p.a_point]][idxMap[p.b_point]] = Number(p.time_from_a_to_b) || 0
   }
 
   // depot：找 is_depot 或用 idx=0
@@ -446,8 +449,6 @@ orderRoutes.openapi(triggerComputeRoute, async (c) => {
     locations: locationSnapshot.map(l => ({
       location_id: l.idx,
       name: l.name,
-      lat: l.lat,
-      lng: l.lng,
       time_window_start: l.time_window_start,
       time_window_end: l.time_window_end,
       service_time: l.service_time,
@@ -471,28 +472,97 @@ orderRoutes.openapi(triggerComputeRoute, async (c) => {
   }
 
   const vrpUrl = `${c.env.vrp_api_python}/vrp/bento/v1/solve`
-  const qstashPublishUrl = `${c.env.QSTASH_URL}/v2/publish/${vrpUrl}`
 
+  // ── QStash 非同步模式（Workers 部署時啟用）────────────────────────────────
+  // const qstashPublishUrl = `${c.env.QSTASH_URL}/v2/publish/${vrpUrl}`
+  // try {
+  //   const res = await fetch(qstashPublishUrl, {
+  //     method: 'POST',
+  //     headers: {
+  //       'Authorization': `Bearer ${c.env.QSTASH_TOKEN}`,
+  //       'Content-Type': 'application/json',
+  //       'Upstash-Callback': `${c.env.API_BASE_URL}/internal/vrp-callback`,
+  //       'Upstash-Retries': '0',
+  //     },
+  //     body: JSON.stringify(vrpPayload),
+  //   })
+  //   if (!res.ok) {
+  //     const errText = await res.text().catch(() => `HTTP ${res.status}`)
+  //     await markFailed(`QStash 排隊失敗: ${errText}`)
+  //   }
+  // } catch (e: any) {
+  //   await markFailed(`無法連線到 QStash: ${e.message}`)
+  // }
+  // return c.json(compute, 202)
+
+  // ── 同步直接呼叫（本地開發用，無 Workers 時長限制）──────────────────────
+  const locByIdx: Record<number, string> = Object.fromEntries(locationSnapshot.map(l => [l.idx, l.db_id]))
+  const vehByIdx: Record<number, string> = Object.fromEntries(vehicleSnapshot.map(v => [v.idx, v.db_id]))
+
+  console.log(`[VRP] fetching ${vrpUrl}`)
   try {
-    const res = await fetch(qstashPublishUrl, {
+    const res = await fetch(vrpUrl, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${c.env.QSTASH_TOKEN}`,
-        'Content-Type': 'application/json',
-        'Upstash-Callback': `${c.env.API_BASE_URL}/internal/vrp-callback`,
-        'Upstash-Retries': '0',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(vrpPayload),
     })
+
     if (!res.ok) {
-      const errText = await res.text().catch(() => `HTTP ${res.status}`)
-      await markFailed(`QStash 排隊失敗: ${errText}`)
+      const errBody = await res.text().catch(() => '')
+      console.error(`[VRP] ${res.status} url=${vrpUrl} body=${errBody}`)
+      await markFailed(`VRP API 回傳 ${res.status}`)
+    } else {
+      const vrpBody = await res.json() as any
+      const { status, routes, unserved_orders, message } = vrpBody
+
+      if (status === 'error') {
+        await markFailed(message ?? 'Unknown error')
+      } else {
+        for (const r of (routes ?? []) as any[]) {
+          const vehicleDbId = vehByIdx[r.vehicle_id]
+          if (!vehicleDbId) continue
+
+          const [insertedRoute] = await db.insert(routeTable).values({
+            compute_id: compute.id,
+            vehicle_id: vehicleDbId,
+            total_distance: Math.round(r.total_distance ?? 0),
+            total_time: Math.round(r.total_distance ?? 0),
+            total_load: 0,
+          }).returning()
+
+          const stops: any[] = r.stops ?? []
+          if (stops.length > 0) {
+            await db.insert(routeStopTable).values(
+              stops.map((s: any, idx: number) => ({
+                route_id: insertedRoute.id,
+                destination_id: locByIdx[s.location_id],
+                sequence: idx,
+                arrival_time: Math.round(s.arrival_time ?? 0),
+                action: s.action ?? 'delivery',
+                bento_order_ids: s.orders ?? [],
+              }))
+            )
+          }
+        }
+
+        const nowEnd = Math.floor(Date.now() / 1000)
+        await db.update(computeTable)
+          .set({
+            compute_status: 'completed',
+            end_time: nowEnd,
+            updated_at: nowEnd,
+            ...(unserved_orders?.length > 0 && { data: { unserved_orders } }),
+          })
+          .where(eq(computeTable.id, compute.id))
+      }
     }
   } catch (e: any) {
-    await markFailed(`無法連線到 QStash: ${e.message}`)
+    await markFailed(`無法連線到 VRP API: ${e.message}`)
   }
 
-  return c.json(compute, 202)
+  const [finalCompute] = await db.select().from(computeTable)
+    .where(eq(computeTable.id, compute.id)).limit(1)
+  return c.json(finalCompute ?? compute, 202)
 })
 
 orderRoutes.openapi(listOrderComputesRoute, async (c) => {
